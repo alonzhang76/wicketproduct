@@ -901,7 +901,6 @@ const DB = {
 
   init() {
     this.load();
-    if (this.employees.length === 0 && !localStorage.getItem('wage_employees_cleared')) this.seedData();
   },
 
   load() {
@@ -925,75 +924,6 @@ const DB = {
   },
 
   uid() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 5); },
-
-  seedData() {
-    const employees = [
-      {name:'李承武',idCard:'320830196902095058',phone:'15852537095',bank:'江苏银行',bankCard:'6228760109010244259',hireDate:'2023-02-02',status:'1'},
-      {name:'刘跟党',idCard:'342221197006127016',phone:'13861461082',bank:'江苏银行',bankCard:'6222031103000985449',hireDate:'2023-01-29',status:'1'},
-      {name:'吴耀华',idCard:'320223196803084437',phone:'13357907866',bank:'江苏银行',bankCard:'6228760109005050216',hireDate:'2023-01-29',status:'1'},
-      {name:'沈月红',idCard:'32082519761025302X',phone:'18661292769',bank:'江苏银行',bankCard:'6222031103000986728',hireDate:'2023-01-29',status:'1'},
-      {name:'张燕',idCard:'320483198706282542',phone:'18994980893',bank:'中国银行',bankCard:'6215696100009658480',hireDate:'2023-02-28',status:'1'},
-      {name:'蒋香兰',idCard:'342221197011256023',phone:'19718906181',bank:'工商银行',bankCard:'6222031103003073540',hireDate:'2026-03-01',status:'1'},
-      {name:'王云海',idCard:'320911196707295712',phone:'15358267773',bank:'',bankCard:'',hireDate:'2024-11-30',status:'1'},
-      {name:'桑晓艳',idCard:'341281198701162868',phone:'15261189775',bank:'工商银行',bankCard:'6212251105002712311',hireDate:'2025-02-07',status:'1'},
-      {name:'林仕军',idCard:'320223197209251815',phone:'15961590387',bank:'中国银行',bankCard:'6215696100009671459',hireDate:'2025-07-28',status:'1'},
-      {name:'王秋先',idCard:'532128198101105121',phone:'15881204191',bank:'工商银行',bankCard:'6212251105002716684',hireDate:'2025-04-10',status:'1'},
-      {name:'吴利成',idCard:'320223197206050217',phone:'13861529293',bank:'中国银行',bankCard:'6217856100126772562',hireDate:'2025-07-30',status:'1'},
-      {name:'马俊海',idCard:'320325196706291010',phone:'15050047311',bank:'工商银行',bankCard:'6212251105002716346',hireDate:'2025-03-10',status:'1'},
-      {name:'陈凯',idCard:'320483198912062516',phone:'13348180308',bank:'中国银行',bankCard:'6215696100009668877',hireDate:'2025-03-10',status:'1'},
-      {name:'肖满',idCard:'612523199304083027',phone:'15609135976',bank:'中国银行',bankCard:'6217896100000065564',hireDate:'2023-02-04',status:'1'},
-      {name:'顾亚伦',idCard:'320483198504142613',phone:'15961186679',bank:'中国银行',bankCard:'6215696100009658456',hireDate:'',status:'1'},
-      {name:'梁浩杰',idCard:'412726200509175417',phone:'17767385191',bank:'中国银行',bankCard:'6217856000111442546',hireDate:'2025-04-09',status:'1'},
-      {name:'袁瑞平',idCard:'32042119710228253X',phone:'13584575153',bank:'中国银行',bankCard:'6217856100075052347',hireDate:'2026-02-25',status:'1'},
-      {name:'郑修谦',idCard:'53262319870112054X',phone:'15126781584',bank:'工商银行',bankCard:'6222031105002571713',hireDate:'2026-04-24',status:'1'},
-      {name:'何秋玉',idCard:'433031196709010922',phone:'13861150397',bank:'工商银行',bankCard:'6212251103005301521',hireDate:'2026-02-25',status:'1'}
-    ];
-    employees.forEach(e => { e.id = this.uid(); });
-    this.employees = employees;
-    this.save('employees');
-
-    const processData = [
-      ['抛丝',0.05,1800,0.05],['下料（1米以下含1米）',0.015,6000,0.021],['下料（1米以上）',0.03,3000,0.042],
-      ['插脚下料',0.02,4500,0.028],['磨头（插脚、槽钢）扁丝',0.03,3000,0.042],['冲点（1米以下含1米）',0.012,7500,0.0168],
-      ['冲点（1米以上）',0.02,4500,0.028],['磨头（1米以下含1米）',0.015,6000,0.021],['磨头（1米以上）',0.025,3600,0.035],
-      ['抛槽钢',0.35,257,0.49],['管件成型（成型+锯头）',0.35,257,0.49],['成型（1米以下含1米）',0.02,4500,0.028],
-      ['成型（1米以上）',0.03,3000,0.042],['耳朵整形（不含槽钢0.03）',0.05,0,0],['冲蝴蝶结，吊钩',0.028,0,0],
-      ['冲闷头',0.015,0,0],['焊架（槽钢）',0.65,0,0],['焊架（扁铁）',0.7,0,0],['拼架（槽钢）',0.55,0,0],
-      ['拼架（扁铁）',0.6,0,0],['打磨（槽钢，扁铁）',0.38,0,0],['打磨，精抛（管架）',0.9,0,0],
-      ['旧管架焊架',0.85,0,0],['旧管架拼架',0.75,0,0],['新管架焊架',0.8,0,0],['新管架拼架',0.7,0,0],
-      ['焊插脚',0.45,0,0],['氩弧焊',0.08,0,0],['管架平面整形',0.55,0,0],['槽钢，扁铁平板整形',0.38,0,0],
-      ['镀后整形',0.15,0,0],['修正耳朵位置、角度',0.03,0,0],['钻孔去毛刺（厚度≤6mm)',0.1,0,0],
-      ['钻孔去毛刺（厚度＞6mm)',0.15,0,0],['焊蝴蝶结、吊钩，滚轮轴',0.05,0,0],['毛坯插脚',0.18,0,0],
-      ['电镀后插脚',0.13,0,0],['装滚轮',0.03,0,0],['敲闷头',0.05,0,0],['焊闷头',0.06,0,0],
-      ['扎带',0.035,0,0],['装箱（上油+封口）',0.04,0,0],['摸架（检验岗位）',20,0,0],['差价',1,0,0],
-      ['带班',1,0,0],['修机补时',1,0,0],['试用计时工资',20,0,0],['磨中支架，磨耳朵（成型后）',0.015,0,0],
-      ['折弯机成型耳朵，中支架',0.05,0,0],['装车，卸车',50,0,0],['零件报废',1,0,0],['返修打磨炉架',0.3,0,0],
-      ['打磨（计时）',20,0,0],['打磨槽钢（不电镀精抛）',0.18,0,0],['打耳朵',0.042,0,0],
-      ['折弯机成型短支撑',0.025,0,0],['氩弧修补焊',0.2,0,0],['焊架补差价',1,0,0],['基本工资',100,0,0],
-      ['餐补',13,0,0],['镀后插脚',0.18,0,0],['激光补焊',0.042,0,0],['年补',100,0,0],['基础工资',80,0,0],
-      ['过年车费补贴',1,0,0],['出差',250,0,0],['折弯机成型内支架，中支架（大折弯机）',0.06,0,0],
-      ['补贴',1,0,0],['龙门拼架',0.55,0,0],['插链条',0.15,0,0],['装滚轮（耳朵2个撑子）',0.035,0,0],
-      ['拼焊下支架蝴蝶结（带下支架）',0.45,0,0],['成型耳朵，中支架，下支架（含切头）',0.055,0,0],
-      ['焊蝴蝶+激光焊插脚',0.6,0,0],['激光焊耳朵撑子',0.13,0,0],['激光焊管架',0.45,0,0],
-      ['激光拼管架',0.4,0,0],['H型炉架焊架',0.7,0,0],['H型炉架拼架',0.6,0,0],['奖励',1,0,0],
-      ['钻溢水孔，去毛刺',0.2,0,0],['机器人焊蝴蝶结',0.42,0,0],['罰款',1,0,0],
-      ['连体架补焊',0.4,0,0],['连体架拼架',0.35,0,0]
-    ];
-    this.processes = processData.map((p, i) => ({
-      id: this.uid(), name: p[0], unitPrice: p[1], dailyQuota: p[2], overPrice: p[3], sort: i + 1
-    }));
-    this.save('processes');
-
-    const orderData = [
-      {customer:'KBA',orderNo:'2507852',orderDate:'2025-08-19',type:'槽钢炉架',spec:'1085*518',qty:3890,output:3890,delivery:'2025-12-28',progress:'已出货'},
-      {customer:'KBA',orderNo:'2504548',orderDate:'2025-08-19',type:'槽钢炉架',spec:'1085*518',qty:3890,output:3890,delivery:'2026-01-12',progress:'已出货'},
-      {customer:'APC',orderNo:'2600067',orderDate:'2026-01-15',type:'槽钢炉架',spec:'标准',qty:5000,output:0,delivery:'2026-03-30',progress:'生产中'},
-      {customer:'TEC',orderNo:'2505061',orderDate:'2025-08-19',type:'扁铁炉架',spec:'标准',qty:2000,output:2000,delivery:'2025-12-10',progress:'已出货'},
-      {customer:'KS',orderNo:'202601717',orderDate:'2026-01-20',type:'管架',spec:'定制',qty:1500,output:800,delivery:'2026-04-15',progress:'生产中'}
-    ];
-    this.orders = orderData.map(o => ({...o, id: this.uid()}));
-    this.save('orders');
-  },
 
   // CRUD: Records
   addRecord(rec) { rec.id = this.uid(); rec.createdAt = new Date().toISOString(); this.records.push(rec); this.save('records'); },
@@ -1048,8 +978,6 @@ const DB = {
   getMonthlySummary(year, month) {
     const monthStr = String(month).padStart(2, '0');
     const prefix = `${year}-${monthStr}`;
-    const housingDefault = ['李承武','刘跟党','沈月红','吴利成','王云海','林仕军'];
-    const socialDefault = ['李承武','吴耀华','张燕','王云海','林仕军','吴利成','陈凯','肖满','梁浩杰','顾亚伦','袁瑞平'];
     const allEmps = this.employees;
     return allEmps.map(emp => {
       const empRecords = this.records.filter(r => r.employee === emp.name && r.date.startsWith(prefix));
@@ -1057,14 +985,8 @@ const DB = {
       const attendDays = new Set(empRecords.map(r => r.date)).size;
       const adj = this.getOrCreateAdjustment(emp.name, year, month);
       if (adj.performance === undefined) adj.performance = 0;
-      if (adj.housing === undefined || (adj.housing === 0 && !adj._housingInit)) {
-        if (housingDefault.includes(emp.name) && !adj._housingInit) { adj.housing = 200; adj._housingInit = true; }
-        else if (adj.housing === undefined) adj.housing = 0;
-      }
-      if (adj.socialInsurance === undefined || (adj.socialInsurance === 0 && !adj._socialInit)) {
-        if (socialDefault.includes(emp.name) && !adj._socialInit) { adj.socialInsurance = 519.96; adj._socialInit = true; }
-        else if (adj.socialInsurance === undefined) adj.socialInsurance = 0;
-      }
+      if (adj.housing === undefined) adj.housing = 0;
+      if (adj.socialInsurance === undefined) adj.socialInsurance = 0;
       if (adj.otherAllowance === undefined) adj.otherAllowance = 0;
       if (adj.yearEndBonus === undefined) adj.yearEndBonus = 0;
       if (adj.housingFund === undefined) adj.housingFund = 0;

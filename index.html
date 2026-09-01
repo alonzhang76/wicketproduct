@@ -92,7 +92,7 @@ body { font-family: 'Microsoft YaHei', '微软雅黑', sans-serif; background: v
 .form-group label .req { color: var(--danger); }
 .form-control {
   padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px;
-  font-size: 13px; background: #fff; width: 100%;
+  font-size: 13px; background: #fffde6; width: 100%;
 }
 .form-control:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-light); }
 select.form-control { cursor: pointer; }
@@ -241,10 +241,12 @@ table.data-table .col-actions button { margin-right: 4px; }
 table.batch-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 table.batch-table th { background: #f8fafc; padding: 6px 8px; text-align: left; border-bottom: 2px solid var(--border); font-weight: 600; white-space: nowrap; }
 table.batch-table td { padding: 3px 4px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
-table.batch-table select, table.batch-table input { width: 100%; padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; background: #fff; }
+table.batch-table select, table.batch-table input { width: 100%; padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; background: #fffde6; }
 table.batch-table select:focus, table.batch-table input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-light); }
 table.batch-table .col-price input, table.batch-table .col-qty input { text-align: right; }
-table.batch-table .col-total { text-align: right; font-weight: 600; color: var(--primary); padding-right: 8px; }
+table.batch-table .col-price input[readonly] { background: #f1f5f9 !important; }
+table.batch-table .col-over { text-align: right; color: var(--text-light); padding-right: 8px; border-right: 2px solid #e2e8f0; }
+table.batch-table .col-total { text-align: right; font-weight: 600; color: var(--primary); padding-left: 8px; padding-right: 8px; }
 table.batch-table .row-num { text-align: center; color: var(--text-light); font-size: 12px; }
 table.batch-table .del-btn { width: 28px; height: 28px; border: none; background: var(--danger-light); color: var(--danger); border-radius: 4px; cursor: pointer; font-size: 16px; line-height: 1; }
 table.batch-table .del-btn:hover { background: var(--danger); color: #fff; }
@@ -350,14 +352,10 @@ table.batch-table .batch-proc { width: 100%; }
               <label>员工 <span class="req">*</span></label>
               <select class="form-control" id="entryEmployee" required></select>
             </div>
-            <div class="form-group" style="min-width:140px;">
-              <label>默认客户</label>
-              <input type="text" class="form-control" id="entryDefaultCustomer" list="customerList" placeholder="可逐行修改" oninput="filterDefaultOrderNo()" onchange="filterDefaultOrderNo()">
-              <datalist id="customerList"></datalist>
-            </div>
-            <div class="form-group" style="min-width:140px;">
-              <label>默认订单号</label>
-              <input type="text" class="form-control" id="entryDefaultOrder" placeholder="可逐行修改" oninput="filterDefaultOrderNo()" onchange="filterDefaultOrderNo()">
+            <div class="form-group" style="min-width:280px;">
+              <label>订单信息</label>
+              <input type="text" class="form-control" id="entryDefaultOrderInfo" list="orderInfoDatalist" placeholder="客户+订单号，可逐行修改" oninput="onOrderInfoSelect(this)">
+              <datalist id="orderInfoDatalist"></datalist>
             </div>
             <div class="form-group" style="min-width:100px;">
               <label>&nbsp;</label>
@@ -369,12 +367,12 @@ table.batch-table .batch-proc { width: 100%; }
             <table class="batch-table" id="batchTable">
               <thead><tr>
                 <th style="width:36px;">#</th>
-                <th>工序名称 <span class="req">*</span></th>
-                <th style="width:80px;">单价</th>
-                <th style="width:80px;">数量 <span class="req">*</span></th>
+                <th style="width:140px;">工序名称 <span class="req">*</span></th>
+                <th style="width:70px;">单价</th>
+                <th style="width:70px;">数量 <span class="req">*</span></th>
+                <th style="width:90px;">超产小计</th>
                 <th style="width:90px;">合计</th>
-                <th style="width:100px;">客户</th>
-                <th style="width:110px;">订单号</th>
+                <th style="width:180px;">订单信息</th>
                 <th style="width:120px;">备注</th>
                 <th style="width:50px;"></th>
               </tr></thead>
@@ -382,8 +380,7 @@ table.batch-table .batch-proc { width: 100%; }
               <tfoot><tr style="font-weight:700;background:var(--primary-light);">
                 <td colspan="5" style="text-align:right;">当日合计</td>
                 <td id="batchGrandTotal" style="color:var(--primary-dark);font-size:15px;">0.00</td>
-                <td colspan="2"></td>
-                <td></td>
+                <td colspan="3"></td>
               </tr></tfoot>
             </table>
           </div>
@@ -596,8 +593,13 @@ table.batch-table .batch-proc { width: 100%; }
             </div>
           </div>
           <input type="file" id="empExcelInput" accept=".xlsx,.xls" style="display:none" onchange="importEmployeesExcel(this)">
-          <div style="margin-bottom:12px;">
+          <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <input type="text" class="form-control" id="empSearchInput" placeholder="搜索姓名/电话/身份证/银行卡号..." oninput="filterEmployeeCards()" style="width:100%;max-width:400px;">
+            <select class="form-control" id="empStatusFilter" onchange="filterEmployeeCards()" style="width:120px;padding:5px 10px;font-size:13px;">
+              <option value="">全部</option>
+              <option value="在职">在职</option>
+              <option value="离职">离职</option>
+            </select>
           </div>
           <div id="employeeTable"></div>
         </div>
@@ -606,11 +608,20 @@ table.batch-table .batch-proc { width: 100%; }
       <!-- 工序管理 -->
       <div class="panel" id="panel-processes">
         <div class="card">
-          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
-            工序价格表
-            <button class="btn btn-primary btn-sm" onclick="showProcessModal()">+ 新增工序</button>
+          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <span>工序价格表<span id="processSummary" style="font-weight:400;color:var(--text-light);font-size:13px;margin-left:8px;"></span></span>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <input type="text" class="form-control" id="processSearch" placeholder="搜索工序名称..." style="width:200px;padding:5px 10px;font-size:13px;" oninput="searchProcess()">
+              <label style="font-size:13px;color:var(--text-light);font-weight:400;">每页</label>
+              <select class="form-control" id="processPageSize" style="width:70px;padding:3px 6px;font-size:13px;" onchange="changeProcessPageSize()">
+                <option value="20">20</option><option value="50">50</option><option value="100">100</option><option value="200">200</option>
+              </select>
+              <span style="font-size:13px;color:var(--text-light);">条/页</span>
+              <button class="btn btn-primary btn-sm" onclick="showProcessModal()">+ 新增工序</button>
+            </div>
           </div>
           <div class="table-wrap" id="processTable"></div>
+          <div class="pagination" id="processPagination"></div>
         </div>
       </div>
 
@@ -807,6 +818,7 @@ table.batch-table .batch-proc { width: 100%; }
         <div class="form-group"><label>单件计价 <span class="req">*</span></label><input type="number" step="0.001" class="form-control" id="procPrice" required></div>
         <div class="form-group"><label>每日定额（件）</label><input type="number" step="1" class="form-control" id="procQuota"></div>
         <div class="form-group"><label>超额计价</label><input type="number" step="0.001" class="form-control" id="procOverPrice"></div>
+        <div class="form-group" style="grid-column:1 / -1;"><label>备注</label><input type="text" class="form-control" id="procNotes" placeholder="工序备注信息"></div>
       </div>
       <div class="form-actions">
         <button class="btn btn-primary" onclick="saveProcess()">保存</button>
@@ -897,6 +909,8 @@ const DB = {
   orderCurrentPage: 1,
   orderPageSize: 20,
   orderFilterResult: [],
+  procCurrentPage: 1,
+  procPageSize: 20,
   currentStat: 'employee',
 
   init() {
@@ -1102,7 +1116,7 @@ const UI = {
         document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
         document.getElementById('panel-' + item.dataset.tab).classList.add('active');
         document.getElementById('pageTitle').textContent = item.title || item.querySelector('span').textContent;
-        if (item.dataset.tab === 'entry') { UI.initSelects(); }
+        if (item.dataset.tab === 'entry') { UI.initSelects(); getActiveOrderInfoDatalist(); }
         if (item.dataset.tab === 'annual') { renderAnnualSummary(); }
         if (item.dataset.tab === 'monthly') { renderMonthlySummary(); }
         if (item.dataset.tab === 'stats') { renderStats(); }
@@ -1245,7 +1259,6 @@ const Batch = {
 function addBatchRow(data) {
   Batch.rowCounter++;
   const idx = Batch.rows.length;
-  const opts = Batch.getOptions();
   const row = {
     id: 'batch_' + Batch.rowCounter,
     process: (data && data.process) || '',
@@ -1262,46 +1275,26 @@ function addBatchRow(data) {
   tr.innerHTML = `
     <td class="row-num">${idx + 1}</td>
     <td><input type="text" class="form-control batch-proc" list="processDatalist" placeholder="输入或选择工序" onchange="onProcChange(this)" onkeydown="onProcKeydown(event,this)"></td>
-    <td class="col-price"><input type="text" class="batch-price" readonly style="text-align:right;"></td>
-    <td class="col-qty"><input type="text" inputmode="decimal" class="batch-qty" placeholder="0" oninput="calcBatchRow(this)" onkeydown="onQtyKeydown(event,this)"></td>
+    <td class="col-price"><input type="text" class="batch-price" readonly style="text-align:right;background:#f1f5f9;"></td>
+    <td class="col-qty"><input type="text" inputmode="decimal" class="batch-qty form-control" placeholder="0" oninput="calcBatchRow(this)" onkeydown="onQtyKeydown(event,this)"></td>
+    <td class="col-over batch-over">0.00</td>
     <td class="col-total batch-total">0.00</td>
-    <td><input type="text" class="batch-cust" list="customerList" placeholder="客户" oninput="filterOrderNoForRow(this)" onchange="filterOrderNoForRow(this)"></td>
-    <td><input type="text" class="batch-ord" placeholder="订单号"></td>
-    <td><input type="text" class="batch-note" placeholder="备注"></td>
+    <td><input type="text" class="batch-ord-info form-control" list="orderInfoDatalist" placeholder="客户,订单号" oninput="onOrderInfoSelect(this)"></td>
+    <td><input type="text" class="batch-note form-control" placeholder="备注"></td>
     <td><button class="del-btn" onclick="delBatchRow('${row.id}')" title="删除">&times;</button></td>
   `;
   tbody.appendChild(tr);
   if (data) {
     tr.querySelector('.batch-proc').value = data.process;
-    tr.querySelector('.batch-price').value = data.unitPrice || '';
+    tr.querySelector('.batch-price').value = data.unitPrice ? (Math.round(data.unitPrice * 1000) / 1000).toFixed(3) : '';
     tr.querySelector('.batch-qty').value = data.quantity || '';
     tr.querySelector('.batch-total').textContent = UI.fmtMoney((data.unitPrice || 0) * (data.quantity || 0));
-    tr.querySelector('.batch-cust').value = data.customer || '';
-    tr.querySelector('.batch-ord').value = data.orderNo || '';
+    tr.querySelector('.batch-ord-info').value = [data.customer, data.orderNo].filter(Boolean).join(',');
     tr.querySelector('.batch-note').value = data.notes || '';
-    if (data.customer) filterOrderNoForRow(tr.querySelector('.batch-cust'));
   }
   updateBatchTotal();
   if (!data) tr.querySelector('.batch-proc').focus();
   return tr;
-}
-
-function filterOrderNoForRow(input) {
-  const tr = input.closest('tr');
-  const customer = input.value.trim();
-  const ordInput = tr.querySelector('.batch-ord');
-  const dlId = 'ordList_' + tr.id;
-  let dl = document.getElementById(dlId);
-  if (!dl) {
-    dl = document.createElement('datalist');
-    dl.id = dlId;
-    document.body.appendChild(dl);
-    ordInput.setAttribute('list', dlId);
-  }
-  const orders = customer
-    ? DB.orders.filter(o => o.customer === customer)
-    : DB.orders;
-  dl.innerHTML = orders.map(o => `<option value="${o.orderNo}">`).join('');
 }
 
 function onProcChange(inp) {
@@ -1309,8 +1302,38 @@ function onProcChange(inp) {
   const procName = inp.value.trim();
   const proc = DB.processes.find(p => p.name === procName);
   const price = proc ? proc.unitPrice : 0;
-  tr.querySelector('.batch-price').value = price ? UI.fmtMoney(price) : '';
+  tr.querySelector('.batch-price').value = price ? (Math.round(price * 1000) / 1000).toFixed(3) : '';
   calcBatchRow(tr.querySelector('.batch-qty'));
+}
+
+function getOverSubtotal(tr) {
+  const procName = tr.querySelector('.batch-proc').value.trim();
+  const proc = DB.processes.find(p => p.name === procName);
+  if (!proc) return 0;
+  const qty = parseFloat(tr.querySelector('.batch-qty').value) || 0;
+  const quota = proc.dailyQuota || 0;
+  const overPrice = proc.overPrice || 0;
+  if (quota <= 0 || overPrice <= 0 || qty <= quota) return 0;
+  return (qty - quota) * overPrice;
+}
+
+function calcBatchRow(inp) {
+  const tr = inp.closest('tr');
+  const price = parseFloat(tr.querySelector('.batch-price').value) || 0;
+  const qty = parseFloat(tr.querySelector('.batch-qty').value) || 0;
+  const procName = tr.querySelector('.batch-proc').value.trim();
+  const proc = DB.processes.find(p => p.name === procName);
+  const quota = proc ? (proc.dailyQuota || 0) : 0;
+  const overSub = getOverSubtotal(tr);
+  tr.querySelector('.batch-over').textContent = UI.fmtMoney(overSub);
+  let total;
+  if (quota > 0 && qty > quota) {
+    total = price * quota + overSub;
+  } else {
+    total = price * qty;
+  }
+  tr.querySelector('.batch-total').textContent = UI.fmtMoney(total);
+  updateBatchTotal();
 }
 
 function onProcKeydown(e, inp) {
@@ -1321,14 +1344,6 @@ function onProcKeydown(e, inp) {
       tr.querySelector('.batch-qty').focus();
     }
   }
-}
-
-function calcBatchRow(inp) {
-  const tr = inp.closest('tr');
-  const price = parseFloat(tr.querySelector('.batch-price').value) || 0;
-  const qty = parseFloat(inp.value) || 0;
-  tr.querySelector('.batch-total').textContent = UI.fmtMoney(price * qty);
-  updateBatchTotal();
 }
 
 function onQtyKeydown(e, inp) {
@@ -1369,27 +1384,34 @@ function updateBatchTotal() {
   document.getElementById('batchGrandTotal').textContent = UI.fmtMoney(total);
 }
 
-function filterDefaultOrderNo() {
-  const customer = document.getElementById('entryDefaultCustomer').value.trim();
-  const ordInput = document.getElementById('entryDefaultOrder');
-  let dl = document.getElementById('defaultOrderList');
-  if (!dl) {
-    dl = document.createElement('datalist');
-    dl.id = 'defaultOrderList';
-    document.body.appendChild(dl);
-    ordInput.setAttribute('list', 'defaultOrderList');
+function getActiveOrderInfoDatalist() {
+  const dl = document.getElementById('orderInfoDatalist');
+  const activeOrders = DB.orders.filter(o => {
+    const st = getOrderStatus(o);
+    return st !== '已出货' && st !== '生产结束';
+  });
+  dl.innerHTML = activeOrders.map(o => {
+    const label = `${o.customer || ''} | ${o.orderNo || ''} | ${o.type || ''} | ${o.drawingNo || ''} | 订单数:${o.qty || 0}`;
+    const value = `${o.customer || ''},${o.orderNo || ''}`;
+    return `<option value="${value}" data-label="${label}">${label}</option>`;
+  }).join('');
+}
+
+function onOrderInfoSelect(inp) {
+  const dl = document.getElementById('orderInfoDatalist');
+  const val = inp.value.trim();
+  const opt = dl && dl.querySelector(`option[value="${val.replace(/"/g, '&quot;')}"]`);
+  if (opt) {
+    inp.value = val;
+    inp.dataset.label = opt.dataset.label;
   }
-  const orders = customer ? DB.orders.filter(o => o.customer === customer) : DB.orders;
-  dl.innerHTML = orders.map(o => `<option value="${o.orderNo}">`).join('');
 }
 
 function syncDefaults() {
-  const cust = document.getElementById('entryDefaultCustomer').value;
-  const ord = document.getElementById('entryDefaultOrder').value;
-  document.querySelectorAll('#batchRows .batch-cust').forEach(el => {
-    if (!el.value) { el.value = cust; filterOrderNoForRow(el); }
+  const info = document.getElementById('entryDefaultOrderInfo').value;
+  document.querySelectorAll('#batchRows .batch-ord-info').forEach(el => {
+    if (!el.value) el.value = info;
   });
-  document.querySelectorAll('#batchRows .batch-ord').forEach(el => { if (!el.value) el.value = ord; });
   UI.toast('已同步至空白行');
 }
 
@@ -1397,8 +1419,10 @@ function saveBatch() {
   const date = document.getElementById('entryDate').value;
   const employee = document.getElementById('entryEmployee').value;
   if (!date || !employee) { UI.toast('请填写日期和员工', 'error'); return; }
-  const defCust = document.getElementById('entryDefaultCustomer').value;
-  const defOrd = document.getElementById('entryDefaultOrder').value;
+  const defInfo = document.getElementById('entryDefaultOrderInfo').value;
+  const defParts = defInfo.split(',').map(s => s.trim());
+  const defCust = defParts[0] || '';
+  const defOrd = defParts[1] || '';
   const editId = document.getElementById('entryId').value;
   let saved = 0;
   const rows = document.querySelectorAll('#batchRows tr');
@@ -1407,10 +1431,15 @@ function saveBatch() {
     const qty = parseFloat(tr.querySelector('.batch-qty').value) || 0;
     if (!proc || !qty) return;
     const price = parseFloat(tr.querySelector('.batch-price').value) || 0;
-    const customer = tr.querySelector('.batch-cust').value || defCust;
-    const orderNo = tr.querySelector('.batch-ord').value || defOrd;
+    const overSub = getOverSubtotal(tr);
+    const rowInfo = tr.querySelector('.batch-ord-info').value || defInfo;
+    const parts = rowInfo.split(',').map(s => s.trim());
+    const customer = parts[0] || defCust;
+    const orderNo = parts[1] || defOrd;
     const notes = tr.querySelector('.batch-note').value || '';
-    const total = price * qty;
+    const procData = DB.processes.find(p => p.name === proc);
+    const quota = procData ? (procData.dailyQuota || 0) : 0;
+    const total = (quota > 0 && qty > quota) ? (price * quota + overSub) : (price * qty);
     const rec = { date, employee, process: proc, unitPrice: price, quantity: qty, totalAmount: total, customer, orderNo, notes };
     if (editId && saved === 0) { DB.updateRecord(editId, rec); }
     else { DB.addRecord(rec); }
@@ -1426,8 +1455,7 @@ function saveBatch() {
 function clearBatch() {
   document.getElementById('batchRows').innerHTML = '';
   document.getElementById('entryId').value = '';
-  document.getElementById('entryDefaultCustomer').value = '';
-  document.getElementById('entryDefaultOrder').value = '';
+  document.getElementById('entryDefaultOrderInfo').value = '';
   document.getElementById('batchGrandTotal').textContent = '0.00';
   addBatchRow();
   renderTodayRecords();
@@ -1441,8 +1469,7 @@ function editEntry(id) {
   document.getElementById('entryDate').value = r.date;
   document.getElementById('entryEmployee').value = r.employee;
   document.getElementById('entryId').value = r.id;
-  document.getElementById('entryDefaultCustomer').value = r.customer || '';
-  document.getElementById('entryDefaultOrder').value = r.orderNo || '';
+  document.getElementById('entryDefaultOrderInfo').value = [r.customer, r.orderNo].filter(Boolean).join(',');
   document.getElementById('batchRows').innerHTML = '';
   addBatchRow({ process: r.process, unitPrice: r.unitPrice, quantity: r.quantity, totalAmount: r.totalAmount, customer: r.customer, orderNo: r.orderNo, notes: r.notes });
   renderTodayRecords();
@@ -1706,7 +1733,7 @@ function renderMonthlySummary() {
   function buildDropdown(val, field, emp) {
     const opts = ddOpts[field] || [];
     const hasVal = opts.includes(val);
-    let html = `<select class="adj-select" style="width:85px;text-align:right;padding:3px 5px;" data-emp="${emp}" data-field="${field}" onchange="saveAdjInline(this)">`;
+    let html = `<select class="adj-select form-control" style="width:85px;text-align:right;padding:3px 5px;" data-emp="${emp}" data-field="${field}" onchange="saveAdjInline(this)">`;
     if (!hasVal && val) html += `<option value="${val}" selected>${val.toFixed(2)}</option>`;
     else if (!hasVal) html += `<option value="0" selected>0.00</option>`;
     opts.forEach(v => {
@@ -1717,7 +1744,7 @@ function renderMonthlySummary() {
   }
 
   function buildInput(val, field, emp) {
-    return `<input type="text" inputmode="decimal" class="adj-input" style="width:80px;text-align:right;padding:3px 5px;" value="${(parseFloat(val) || 0).toFixed(2)}" data-emp="${emp}" data-field="${field}" onchange="saveAdjInline(this)">`;
+    return `<input type="text" inputmode="decimal" class="adj-input form-control" style="width:80px;text-align:right;padding:3px 5px;" value="${(parseFloat(val) || 0).toFixed(2)}" data-emp="${emp}" data-field="${field}" onchange="saveAdjInline(this)">`;
   }
 
   container.innerHTML = `
@@ -2751,7 +2778,7 @@ UI.renderEmployeeTable = function() {
       ${emps.map((e, i) => {
         const isLeave = !!(e.leaveDate && e.leaveDate.toString().trim());
         const initial = (e.name || '?').slice(0, 1);
-        return `<div class="emp-card ${isLeave ? 'emp-card-leave' : ''}">
+        return `<div class="emp-card ${isLeave ? 'emp-card-leave' : ''}" data-status="${isLeave ? '离职' : '在职'}">
           <div class="emp-card-header">
             <div class="emp-avatar ${isLeave ? 'emp-avatar-leave' : ''}">${initial}</div>
             <div class="emp-card-name">${e.name || '-'}</div>
@@ -2780,9 +2807,14 @@ UI.renderEmployeeTable = function() {
 
 function filterEmployeeCards() {
   const q = (document.getElementById('empSearchInput').value || '').toLowerCase().trim();
+  const statusFilter = document.getElementById('empStatusFilter').value;
   const cards = document.querySelectorAll('#employeeTable .emp-card');
   let visible = 0;
   cards.forEach(card => {
+    if (statusFilter) {
+      const cardStatus = card.dataset.status || card.querySelector('.emp-card-status')?.textContent.trim() || '';
+      if (cardStatus !== statusFilter) { card.style.display = 'none'; return; }
+    }
     if (!q) { card.style.display = ''; visible++; return; }
     const text = card.textContent.toLowerCase();
     if (text.includes(q)) { card.style.display = ''; visible++; }
@@ -2971,16 +3003,29 @@ function clearAllEmployees() {
 // ===================== PROCESS MGMT =====================
 UI.renderProcessTable = function() {
   const container = document.getElementById('processTable');
-  const procs = DB.processes;
-  if (procs.length === 0) { container.innerHTML = UI.emptyState('暂无工序'); return; }
+  const pagEl = document.getElementById('processPagination');
+  const sumEl = document.getElementById('processSummary');
+  const keyword = (document.getElementById('processSearch')?.value || '').trim().toLowerCase();
+  const data = DB.processes.filter(p => {
+    if (keyword && !p.name.toLowerCase().includes(keyword) && !(p.notes || '').toLowerCase().includes(keyword)) return false;
+    return true;
+  });
+  if (sumEl) sumEl.textContent = `共 ${data.length} 条`;
+  if (data.length === 0) { container.innerHTML = UI.emptyState('暂无工序'); if (pagEl) pagEl.innerHTML = ''; return; }
+  const totalPages = Math.ceil(data.length / DB.procPageSize);
+  if (DB.procCurrentPage > totalPages) DB.procCurrentPage = 1;
+  const start = (DB.procCurrentPage - 1) * DB.procPageSize;
+  const pageData = data.slice(start, start + DB.procPageSize);
+  const fmt3 = v => v === undefined || v === null || v === '' ? '-' : (Math.round(v * 1000) / 1000).toFixed(3);
   container.innerHTML = `
-    <table class="data-table">
-      <thead><tr><th>序号</th><th>工序名称</th><th>单件计价</th><th>每日定额</th><th>超额计价</th><th>操作</th></tr></thead>
+    <table class="data-table" style="font-size:13px;">
+      <thead><tr><th style="width:50px;">序号</th><th>工序名称</th><th style="width:90px;">单件计价</th><th style="width:90px;">每日定额</th><th style="width:90px;">超额计价</th><th>备注</th><th style="width:80px;">操作</th></tr></thead>
       <tbody>
-        ${procs.map((p, i) => `<tr>
-          <td>${i + 1}</td><td style="font-weight:600;">${p.name}</td>
-          <td style="color:var(--primary);font-weight:600;">${UI.fmtMoney(p.unitPrice)}</td>
-          <td>${p.dailyQuota || '-'}</td><td>${p.overPrice ? UI.fmtMoney(p.overPrice) : '-'}</td>
+        ${pageData.map((p, i) => `<tr>
+          <td>${start + i + 1}</td><td style="font-weight:600;">${p.name}</td>
+          <td style="color:var(--primary);font-weight:600;">${fmt3(p.unitPrice)}</td>
+          <td>${p.dailyQuota || '-'}</td><td>${p.overPrice ? fmt3(p.overPrice) : '-'}</td>
+          <td style="color:var(--text-light);font-size:12px;">${p.notes || '-'}</td>
           <td class="col-actions">
             <button class="btn btn-sm btn-icon-only" style="background:var(--primary-light);color:var(--primary-dark);" onclick="editProcess('${p.id}')" title="编辑">&#9998;</button>
             <button class="btn btn-sm btn-icon-only btn-danger" onclick="deleteProcess('${p.id}')" title="删除">&times;</button>
@@ -2988,7 +3033,35 @@ UI.renderProcessTable = function() {
         </tr>`).join('')}
       </tbody>
     </table>`;
+  if (pagEl) {
+    pagEl.innerHTML = `
+      <div class="pagination-info">第 ${start + 1} - ${Math.min(start + DB.procPageSize, data.length)} 条 / 共 ${data.length} 条</div>
+      <div class="pagination-controls">
+        <button onclick="gotoProcessPage(1)" ${DB.procCurrentPage === 1 ? 'disabled' : ''}>&laquo;</button>
+        <button onclick="gotoProcessPage(${DB.procCurrentPage - 1})" ${DB.procCurrentPage === 1 ? 'disabled' : ''}>&lsaquo;</button>
+        <button class="active">${DB.procCurrentPage}</button>
+        <button onclick="gotoProcessPage(${DB.procCurrentPage + 1})" ${DB.procCurrentPage === totalPages ? 'disabled' : ''}>&rsaquo;</button>
+        <button onclick="gotoProcessPage(${totalPages})" ${DB.procCurrentPage === totalPages ? 'disabled' : ''}>&raquo;</button>
+      </div>`;
+  }
 };
+
+function searchProcess() {
+  DB.procCurrentPage = 1;
+  UI.renderProcessTable();
+}
+
+function changeProcessPageSize() {
+  const sel = document.getElementById('processPageSize');
+  DB.procPageSize = parseInt(sel.value) || 20;
+  DB.procCurrentPage = 1;
+  UI.renderProcessTable();
+}
+
+function gotoProcessPage(page) {
+  DB.procCurrentPage = page;
+  UI.renderProcessTable();
+}
 
 function showProcessModal() {
   document.getElementById('processModalTitle').textContent = '新增工序';
@@ -2997,6 +3070,7 @@ function showProcessModal() {
   document.getElementById('procPrice').value = '';
   document.getElementById('procQuota').value = '';
   document.getElementById('procOverPrice').value = '';
+  document.getElementById('procNotes').value = '';
   document.getElementById('processModal').classList.add('show');
 }
 
@@ -3009,6 +3083,7 @@ function editProcess(id) {
   document.getElementById('procPrice').value = p.unitPrice;
   document.getElementById('procQuota').value = p.dailyQuota || '';
   document.getElementById('procOverPrice').value = p.overPrice || '';
+  document.getElementById('procNotes').value = p.notes || '';
   document.getElementById('processModal').classList.add('show');
 }
 
@@ -3017,7 +3092,12 @@ function saveProcess() {
   const name = document.getElementById('procName').value.trim();
   const price = parseFloat(document.getElementById('procPrice').value);
   if (!name || isNaN(price)) { UI.toast('请填写名称和单价', 'error'); return; }
-  const data = { name, unitPrice: price, dailyQuota: parseInt(document.getElementById('procQuota').value) || 0, overPrice: parseFloat(document.getElementById('procOverPrice').value) || 0 };
+  const data = {
+    name, unitPrice: price,
+    dailyQuota: parseInt(document.getElementById('procQuota').value) || 0,
+    overPrice: parseFloat(document.getElementById('procOverPrice').value) || 0,
+    notes: document.getElementById('procNotes').value.trim()
+  };
   if (id) { DB.updateProcess(id, data); UI.toast('工序已更新'); }
   else { DB.addProcess(data); UI.toast('工序已添加'); }
   closeModal('processModal');
@@ -3038,6 +3118,7 @@ UI.renderOrderTable = function() {
   refreshOrderFilters();
   filterOrderTable();
   refreshOrderDatalists();
+  getActiveOrderInfoDatalist();
 };
 
 function filterOrderTable() {
@@ -3317,27 +3398,58 @@ function importOrdersExcel(input) {
       const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-      const headerFields = {
-        '下单日期': 'orderDate', '客户': 'customer', '订单号': 'orderNo',
-        '炉架类型': 'type', '图纸号': 'drawingNo', '规格': 'spec',
-        '订单数量': 'qty', '产出数量': 'output', '库存': 'stock',
-        '电镀': 'plating', '蝴蝶结': 'bow', '备注': 'notes',
-        '出货日期': 'shipDate', '交期': 'delivery', '投料日期': 'materialDate',
-        '包装结束': 'packDate', '1月': 'm1', '2月': 'm2', '3月': 'm3',
-        '4月': 'm4', '5月': 'm5', '6月': 'm6', '7月': 'm7', '8月': 'm8',
-        '9月': 'm9', '10月': 'm10', '11月': 'm11', '12月': 'm12'
-      };
+      const headerRules = [
+        { field: 'orderDate', test: h => /下单.*日期|订单日期|下单日/.test(h) },
+        { field: 'customer', test: h => /^客户$|客户名称/.test(h) },
+        { field: 'orderNo', test: h => /订单号|订单编号/.test(h) },
+        { field: 'type', test: h => /炉架类型|产品类型|类型/.test(h) },
+        { field: 'drawingNo', test: h => /图纸号|图号|图纸编号/.test(h) },
+        { field: 'spec', test: h => /规格|规格型号/.test(h) },
+        { field: 'qty', test: h => /订单数量|订货数量|订单数/.test(h) },
+        { field: 'output', test: h => /产出数量|产量|产出/.test(h) },
+        { field: 'stock', test: h => /库存|库存量/.test(h) },
+        { field: 'plating', test: h => /电镀/.test(h) },
+        { field: 'bow', test: h => /蝴蝶结/.test(h) },
+        { field: 'notes', test: h => /备注|说明/.test(h) },
+        { field: 'shipDate', test: h => /出货日期|发货日期/.test(h) },
+        { field: 'delivery', test: h => /交期|交货期|交付日期/.test(h) },
+        { field: 'materialDate', test: h => /投料日期|投料日/.test(h) },
+        { field: 'packDate', test: h => /包装结束|包装日期|包装完成/.test(h) },
+        { field: 'm1', test: h => /^1月$|一月份|1月份/.test(h) },
+        { field: 'm2', test: h => /^2月$|二月份|2月份/.test(h) },
+        { field: 'm3', test: h => /^3月$|三月份|3月份/.test(h) },
+        { field: 'm4', test: h => /^4月$|四月份|4月份/.test(h) },
+        { field: 'm5', test: h => /^5月$|五月份|5月份/.test(h) },
+        { field: 'm6', test: h => /^6月$|六月份|6月份/.test(h) },
+        { field: 'm7', test: h => /^7月$|七月份|7月份/.test(h) },
+        { field: 'm8', test: h => /^8月$|八月份|8月份/.test(h) },
+        { field: 'm9', test: h => /^9月$|九月份|9月份/.test(h) },
+        { field: 'm10', test: h => /^10月$|十月份|10月份/.test(h) },
+        { field: 'm11', test: h => /^11月$|十一月份|11月份/.test(h) },
+        { field: 'm12', test: h => /^12月$|十二月份|12月份/.test(h) }
+      ];
       let headerRow = -1;
       const colMap = {};
-      for (let i = 0; i < rows.length; i++) {
-        for (let j = 0; j < (rows[i] || []).length; j++) {
-          const h = String(rows[i][j] || '').trim();
-          if (headerFields[h] && colMap[headerFields[h]] === undefined) {
-            colMap[headerFields[h]] = j;
-            if (headerRow === -1) headerRow = i;
+      for (let i = 0; i < Math.min(rows.length, 5); i++) {
+        const row = rows[i] || [];
+        let matches = 0;
+        const tempMap = {};
+        for (let j = 0; j < row.length; j++) {
+          const h = String(row[j] || '').trim();
+          if (!h) continue;
+          for (const rule of headerRules) {
+            if (rule.test(h) && tempMap[rule.field] === undefined) {
+              tempMap[rule.field] = j;
+              matches++;
+              break;
+            }
           }
         }
-        if (headerRow >= 0) break;
+        if (matches >= 3) {
+          headerRow = i;
+          Object.assign(colMap, tempMap);
+          break;
+        }
       }
       if (headerRow === -1 || colMap.customer === undefined) {
         UI.toast('未找到有效表头（需包含"客户"列）', 'error');
@@ -3590,13 +3702,22 @@ function renderCalDayDetail() {
     return `<span class="badge ${map[s] || 'badge-inactive'}">${labels[s] || s}</span>`;
   };
   container.innerHTML = `<div style="font-weight:600;margin-bottom:4px;">${calSelectedDate}（${dayEvents.length}个事件）</div>` +
-    dayEvents.map(e => `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--border);">
-      <span style="font-size:12px;">${e.time ? '<b>' + e.time + '</b> ' : ''}${e.title} ${e.sourceType === 'order' ? '<span style="font-size:10px;color:var(--primary);">[订单]</span>' : ''}</span>
-      <span style="display:flex;gap:4px;align-items:center;">${statusBadge(e.status)}
-        <button class="btn btn-sm btn-icon-only" style="background:var(--primary-light);color:var(--primary-dark);font-size:11px;" onclick="showCalEventModal('${e.id}')" title="编辑">&#9998;</button>
-        ${e.sourceType !== 'order' ? `<button class="btn btn-sm btn-icon-only btn-danger" style="font-size:11px;" onclick="deleteCalEvent('${e.id}')" title="删除">&times;</button>` : ''}
-      </span>
-    </div>`).join('');
+    dayEvents.map(e => {
+      let titleHtml = `${e.time ? '<b>' + e.time + '</b> ' : ''}${e.title} ${e.sourceType === 'order' ? '<span style="font-size:10px;color:var(--primary);">[订单]</span>' : ''}`;
+      if (e.sourceType === 'order' && e.sourceId) {
+        const ord = DB.orders.find(o => o.id === e.sourceId);
+        if (ord) {
+          titleHtml += `<div style="font-size:11px;color:var(--text-light);margin-top:2px;">客户：${ord.customer || '-'} ｜ 图纸号：${ord.drawingNo || '-'} ｜ 订单数量：${ord.qty || '-'}</div>`;
+        }
+      }
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:12px;">${titleHtml}</span>
+        <span style="display:flex;gap:4px;align-items:center;">${statusBadge(e.status)}
+          <button class="btn btn-sm btn-icon-only" style="background:var(--primary-light);color:var(--primary-dark);font-size:11px;" onclick="showCalEventModal('${e.id}')" title="编辑">&#9998;</button>
+          ${e.sourceType !== 'order' ? `<button class="btn btn-sm btn-icon-only btn-danger" style="font-size:11px;" onclick="deleteCalEvent('${e.id}')" title="删除">&times;</button>` : ''}
+        </span>
+      </div>`;
+    }).join('');
 }
 
 function calPrevMonth() { calViewDate.setMonth(calViewDate.getMonth() - 1); renderCalGrid(); }

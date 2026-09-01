@@ -1585,22 +1585,40 @@ function importExcel(input) {
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
       if (rows.length < 2) { UI.toast('Excel文件无数据', 'error'); input.value = ''; return; }
+      const header = rows[0].map(h => String(h).trim());
+      const colMap = {};
+      header.forEach((h, i) => {
+        if (/日期/.test(h)) colMap.date = i;
+        else if (/员工|姓名/.test(h)) colMap.employee = i;
+        else if (/工序/.test(h)) colMap.process = i;
+        else if (/单价/.test(h)) colMap.unitPrice = i;
+        else if (/数量/.test(h)) colMap.quantity = i;
+        else if (/合计|金额/.test(h)) colMap.totalAmount = i;
+        else if (/客户/.test(h)) colMap.customer = i;
+        else if (/订单/.test(h)) colMap.orderNo = i;
+        else if (/备注/.test(h)) colMap.notes = i;
+      });
+      const ci = (k, fallback) => colMap[k] !== undefined ? colMap[k] : fallback;
       const validRows = [];
       for (let i = 1; i < rows.length; i++) {
         const r = rows[i];
-        if (!r[2] && !r[3]) continue;
-        let ds = r[2];
+        const dateRaw = r[ci('date', 1)];
+        const employee = String(r[ci('employee', 2)] || '').trim();
+        const process = String(r[ci('process', 3)] || '').trim();
+        if (!dateRaw && !employee) continue;
+        if (!employee || !process) continue;
+        let ds = dateRaw;
         if (ds instanceof Date) { ds = ds.getFullYear() + '-' + String(ds.getMonth()+1).padStart(2,'0') + '-' + String(ds.getDate()).padStart(2,'0'); }
         else if (typeof ds === 'number') { const d = XLSX.SSF.parse_date_code(ds); ds = d.y + '-' + String(d.m).padStart(2,'0') + '-' + String(d.d).padStart(2,'0'); }
         else ds = String(ds).slice(0, 10);
-        const employee = String(r[3] || '').trim();
-        const process = String(r[4] || '').trim();
-        if (!employee || !process) continue;
         validRows.push({
           date: ds, employee, process,
-          unitPrice: parseFloat(r[5]) || 0, quantity: parseFloat(r[6]) || 0,
-          totalAmount: parseFloat(r[7]) || 0, customer: String(r[8] || ''), orderNo: String(r[9] || ''),
-          notes: String(r[10] || '').trim()
+          unitPrice: parseFloat(r[ci('unitPrice', 4)]) || 0,
+          quantity: parseFloat(r[ci('quantity', 5)]) || 0,
+          totalAmount: parseFloat(r[ci('totalAmount', 6)]) || 0,
+          customer: String(r[ci('customer', 7)] || ''),
+          orderNo: String(r[ci('orderNo', 8)] || ''),
+          notes: String(r[ci('notes', 9)] || '').trim()
         });
       }
       if (validRows.length === 0) { UI.toast('未找到有效数据', 'error'); input.value = ''; return; }

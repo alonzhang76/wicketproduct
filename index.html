@@ -4027,8 +4027,18 @@ function restoreData(input) {
       const data = JSON.parse(e.target.result);
       if (!data.records || !data.employees) { UI.toast('备份文件格式不正确', 'error'); return; }
       const calCount = (data.calendarEvents || []).length;
-      if (!confirm(`确认恢复数据？\n\n备份时间：${data.exportDate ? new Date(data.exportDate).toLocaleString() : '未知'}\n工资记录：${data.records.length} 条\n员工信息：${data.employees.length} 人\n工序价格：${(data.processes || []).length} 项\n订单信息：${(data.orders || []).length} 条\n日历事件：${calCount} 个\n\n此操作将覆盖当前所有数据！`)) { input.value = ''; return; }
-      Object.keys(STORE_KEYS).forEach(k => { DB[k] = data[k] || (k === 'dropdownOptions' ? DB.dropdownOptions : []); });
+      if (!confirm(`确认恢复数据？\n\n备份时间：${data.exportDate ? new Date(data.exportDate).toLocaleString() : '未知'}\n工资记录：${data.records.length} 条\n员工信息：${data.employees.length} 人\n工序价格：${(data.processes || []).length} 项\n订单信息：${(data.orders || []).length} 条\n补贴设置：${(data.adjustments || []).length} 条\n下拉选项：${data.dropdownOptions ? '有' : '无'}\n日历事件：${calCount} 个\n日历类型：${(data.calendarEventTypes || []).length} 个\n\n此操作将覆盖当前所有数据！`)) { input.value = ''; return; }
+      Object.keys(STORE_KEYS).forEach(k => {
+        if (k === 'dropdownOptions') {
+          DB[k] = data[k] || DB.dropdownOptions;
+        } else if (k === 'calendarEventTypes') {
+          DB[k] = (data[k] && data[k].length) ? data[k] : DB.calendarEventTypes;
+        } else if (Array.isArray(data[k])) {
+          DB[k] = data[k];
+        } else {
+          DB[k] = [];
+        }
+      });
       Object.keys(STORE_KEYS).forEach(k => DB.save(k));
       UI.toast('数据恢复成功，正在刷新...');
       setTimeout(() => location.reload(), 1200);

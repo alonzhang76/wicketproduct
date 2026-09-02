@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>计件工资管理系统</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- Supabase 客户端 -->
+<script type="module" src="js/supabase.js"></script>
+<!-- Supabase 数据存储层 -->
+<script src="js/supabase-store.js"></script>
+<!-- 登录守卫（未登录跳转 login.html）-->
+<script src="js/auth-guard.js"></script>
 <script>
 // Seed data removed - use "导入Excel" button to load data
 </script>
@@ -284,6 +290,7 @@ table.batch-table .batch-proc { width: 100%; }
     <div class="sidebar-header">
       <h1>计件工资管理系统</h1>
       <p>Piece-rate Wage System</p>
+      <div id="userInfo" style="margin-top:8px;font-size:11px;color:#94a3b8;text-align:center;"></div>
     </div>
     <nav class="nav" id="nav">
       <div class="nav-item active" data-tab="entry" title="工序登记">
@@ -325,6 +332,10 @@ table.batch-table .batch-proc { width: 100%; }
       <div class="nav-item" data-tab="backup" title="数据备份">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7"/><polyline points="7 9 12 4 17 9"/><line x1="12" y1="4" x2="12" y2="16"/></svg>
         <span>数据备份</span>
+      </div>
+      <div class="nav-item" onclick="logoutSupabase()" title="退出登录" style="margin-top:auto;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <span>退出登录</span>
       </div>
     </nav>
   </div>
@@ -927,23 +938,49 @@ const DB = {
   },
 
   load() {
-    this.records = JSON.parse(localStorage.getItem(STORE_KEYS.records) || '[]');
-    this.employees = JSON.parse(localStorage.getItem(STORE_KEYS.employees) || '[]');
-    this.processes = JSON.parse(localStorage.getItem(STORE_KEYS.processes) || '[]');
-    this.orders = JSON.parse(localStorage.getItem(STORE_KEYS.orders) || '[]');
-    this.adjustments = JSON.parse(localStorage.getItem(STORE_KEYS.adjustments) || '[]');
-    this.calendarEvents = JSON.parse(localStorage.getItem(STORE_KEYS.calendarEvents) || '[]');
-    const savedTypes = localStorage.getItem(STORE_KEYS.calendarEventTypes);
-    if (savedTypes) this.calendarEventTypes = JSON.parse(savedTypes);
-    const savedOpts = localStorage.getItem(STORE_KEYS.dropdownOptions);
-    if (savedOpts) {
-      const parsed = JSON.parse(savedOpts);
-      Object.keys(parsed).forEach(k => { this.dropdownOptions[k] = parsed[k]; });
+    // 优先从 SupabaseStore 读取（云端），回退到 localStorage
+    var store = window.SupabaseStore;
+    if (store && store.isReady && store.isReady()) {
+      this.records = store.get(STORE_KEYS.records, []) || [];
+      this.employees = store.get(STORE_KEYS.employees, []) || [];
+      this.processes = store.get(STORE_KEYS.processes, []) || [];
+      this.orders = store.get(STORE_KEYS.orders, []) || [];
+      this.adjustments = store.get(STORE_KEYS.adjustments, []) || [];
+      this.calendarEvents = store.get(STORE_KEYS.calendarEvents, []) || [];
+      var savedTypes = store.get(STORE_KEYS.calendarEventTypes, null);
+      if (savedTypes) this.calendarEventTypes = savedTypes;
+      var savedOpts = store.get(STORE_KEYS.dropdownOptions, null);
+      if (savedOpts) { Object.keys(savedOpts).forEach(k => { this.dropdownOptions[k] = savedOpts[k]; }); }
+    } else {
+      // 回退到 localStorage
+      this.records = JSON.parse(localStorage.getItem(STORE_KEYS.records) || '[]');
+      this.employees = JSON.parse(localStorage.getItem(STORE_KEYS.employees) || '[]');
+      this.processes = JSON.parse(localStorage.getItem(STORE_KEYS.processes) || '[]');
+      this.orders = JSON.parse(localStorage.getItem(STORE_KEYS.orders) || '[]');
+      this.adjustments = JSON.parse(localStorage.getItem(STORE_KEYS.adjustments) || '[]');
+      this.calendarEvents = JSON.parse(localStorage.getItem(STORE_KEYS.calendarEvents) || '[]');
+      const savedTypes = localStorage.getItem(STORE_KEYS.calendarEventTypes);
+      if (savedTypes) this.calendarEventTypes = JSON.parse(savedTypes);
+      const savedOpts = localStorage.getItem(STORE_KEYS.dropdownOptions);
+      if (savedOpts) { const parsed = JSON.parse(savedOpts); Object.keys(parsed).forEach(k => { this.dropdownOptions[k] = parsed[k]; }); }
     }
   },
 
+  async loadFromCloud() {
+    if (window.SupabaseStore && window.SupabaseStore.init) {
+      await window.SupabaseStore.init();
+    }
+    this.load();
+  },
+
   save(key) {
-    localStorage.setItem(STORE_KEYS[key], JSON.stringify(this[key]));
+    var storeKey = STORE_KEYS[key];
+    // 同步写 localStorage 作为本地缓存
+    try { localStorage.setItem(storeKey, JSON.stringify(this[key])); } catch(e) {}
+    // 异步写 Supabase 云端
+    if (window.SupabaseStore && window.SupabaseStore.set) {
+      window.SupabaseStore.set(storeKey, this[key]);
+    }
   },
 
   uid() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 5); },
@@ -1095,7 +1132,9 @@ const DB = {
 
 // ===================== UI LAYER =====================
 const UI = {
-  init() {
+  async init() {
+    // 先等待 Supabase 初始化，再从云端加载数据
+    await DB.loadFromCloud();
     this.bindNav();
     this.initDatePickers();
     this.initSelects();
@@ -4405,8 +4444,14 @@ UI.renderDataOverview = function() {
 
 // ===================== INIT =====================
 DB.init();
-UI.init();
-UI.renderDataOverview();
+UI.init().then(function() {
+  UI.renderDataOverview();
+  // 显示当前登录用户
+  var userInfoEl = document.getElementById('userInfo');
+  if (userInfoEl && window.currentSupabaseUser) {
+    userInfoEl.textContent = '当前用户：' + (window.currentSupabaseUser.email || '');
+  }
+});
 
 </script>
 </body>

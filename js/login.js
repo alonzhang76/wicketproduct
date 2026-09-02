@@ -1,6 +1,6 @@
 /* ===== 登录逻辑 login.js =====
  * 使用 supabase.auth.signInWithPassword 完成登录
- * 登录成功后跳转到 计件工资管理系统.html
+ * 登录成功后跳转到首页（index.html）
  */
 
 import { supabase, SUPABASE_URL } from "./supabase.js";
@@ -90,8 +90,8 @@ async function handleLogin(event) {
     window.currentSupabaseUser = result.data.user;
     setMessage(MSG.success, "success");
 
-    // 获取文件名（动态匹配，不硬编码）
-    var target = location.origin.includes('lori.net.cn') ? './' : '计件工资管理系统.html';
+    // 跳转目标：部署域名 → './'（目录默认文档 index.html）；其他环境 → 'index.html'
+    var target = resolveHomeTarget();
 
     setTimeout(function() {
       try { window.location.replace(target); }
@@ -112,6 +112,12 @@ async function handleLogin(event) {
 
 window.handleLogin = handleLogin;
 
+// 跳转目标：统一跳到 index.html；部署域名保留 './' 兜底
+function resolveHomeTarget() {
+  if (location.origin.includes('lori.net.cn')) return './';
+  return 'index.html';
+}
+
 // 已登录则跳转首页
 (function redirectIfAuthedSync() {
   try {
@@ -124,8 +130,7 @@ window.handleLogin = handleLogin;
           try {
             var parsed = JSON.parse(raw);
             if (parsed && parsed.user) {
-              var target = location.origin.includes('lori.net.cn') ? './' : '计件工资管理系统.html';
-              window.location.replace(target);
+              window.location.replace(resolveHomeTarget());
               return;
             }
           } catch(_) {}
@@ -139,8 +144,7 @@ window.handleLogin = handleLogin;
   try {
     var result = await supabase.auth.getUser();
     if (result.data && result.data.user) {
-      var target = location.origin.includes('lori.net.cn') ? './' : '计件工资管理系统.html';
-      window.location.replace(target);
+      window.location.replace(resolveHomeTarget());
     }
   } catch(e) {}
 })();

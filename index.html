@@ -224,8 +224,10 @@ table.data-table .col-actions button { margin-right: 4px; }
   position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;
   border-radius: 6px; font-size: 14px; color: #fff; z-index: 300;
   opacity: 0; transition: opacity 0.3s;
+  pointer-events: none; /* 关键修复：未显示的 toast 绝不拦截任何点击/触摸 */
+  box-sizing: border-box;
 }
-.toast.show { opacity: 1; }
+.toast.show { opacity: 1; pointer-events: auto; } /* 显示时才恢复点击 */
 .toast-success { background: var(--success); }
 .toast-error { background: var(--danger); }
 
@@ -456,7 +458,19 @@ table.batch-table .batch-proc { width: 100%; }
   .cal-dot { width: 4px; height: 4px; }
 
   /* Toast */
-  .toast { top: 8px; left: 8px; right: 8px; font-size: 11px; }
+  .toast {
+    top: 8px !important;
+    left: 8px !important;
+    right: 8px !important;
+    bottom: auto !important;   /* 关键：必须清掉基础样式的 bottom:24px，否则 top+bottom 联合拉伸成全屏高 */
+    width: calc(100% - 16px) !important;
+    height: auto !important;
+    max-width: calc(100% - 16px) !important;
+    max-height: none !important;
+    font-size: 11px;
+    pointer-events: none !important;   /* 安全网：toast 显示与否都不截手势（show 时恢复）*/
+  }
+  .toast.show { pointer-events: auto !important; }
 
   /* 输入框 */
   .form-control { font-size: 12px; padding: 6px 8px; }

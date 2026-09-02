@@ -337,10 +337,8 @@ table.batch-table .batch-proc { width: 100%; }
     margin-bottom: 56px;
     width: 100% !important;
   }
-  /* 移除 content 的 overflow 滚动容器，改由 body 滚动，避免吞掉按钮触摸事件 */
-  .content { padding: 6px; overflow: visible !important; }
-  .main { overflow: visible !important; }
-  body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  /* 内容区域保持 overflow-y: auto 用于垂直滚动 */
+  .content { padding: 6px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .topbar { padding: 8px 10px; }
   .topbar h2 { font-size: 14px; }
   .topbar-date { font-size: 10px; }

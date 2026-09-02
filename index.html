@@ -325,17 +325,17 @@ table.batch-table .batch-proc { width: 100%; }
   .stat-card .stat-label { font-size: 11px; }
 
   /* 表单组 */
-  .form-group { min-width: 0 !important; width: 100%; }
-  .filter-bar { flex-direction: column; gap: 6px; }
-  .filter-bar .form-group { min-width: 0 !important; width: 100%; }
+  .filter-bar { flex-wrap: wrap; gap: 6px; }
+  .filter-bar .form-group { min-width: 0 !important; flex: 1 1 140px; }
 
-  /* 表格 */
-  .data-table { font-size: 11px; }
+  /* 表格 — 用 .table-wrap 包裹的才可横向滚动 */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .data-table { font-size: 11px; min-width: 600px; }
   .data-table th, .data-table td { padding: 4px 6px; white-space: nowrap; }
-  .table-wrap, .card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
-  /* 批量登记表格 */
-  table.batch-table { font-size: 10px; }
+  /* 批量登记表格 — 外层包裹横向滚动 */
+  .batch-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table.batch-table { font-size: 10px; min-width: 700px; }
   table.batch-table th, table.batch-table td { padding: 3px 4px; white-space: nowrap; }
   table.batch-table input, table.batch-table select {
     font-size: 10px; padding: 2px 4px; min-width: 50px;
@@ -352,6 +352,10 @@ table.batch-table .batch-proc { width: 100%; }
   .modal-body { padding: 12px; }
   .modal-header { padding: 10px 12px; font-size: 15px; }
 
+  /* 模态框内表单组垂直排列 */
+  .modal-body .form-row { flex-direction: column !important; }
+  .modal-body .form-group { min-width: 0 !important; width: 100%; }
+
   /* 分页 */
   .pagination { flex-wrap: wrap; gap: 4px; }
   .pagination button { padding: 4px 8px; font-size: 11px; }
@@ -359,7 +363,7 @@ table.batch-table .batch-proc { width: 100%; }
   /* 员工卡片 */
   .emp-card-grid { grid-template-columns: 1fr !important; }
 
-  /* 按钮 */
+  /* 按钮 — 保持可点击 */
   .btn { padding: 6px 10px; font-size: 12px; }
   .btn-sm { padding: 4px 8px; font-size: 11px; }
 
@@ -369,24 +373,20 @@ table.batch-table .batch-proc { width: 100%; }
   .cal-day-num { font-size: 11px; }
   .cal-dot { width: 5px; height: 5px; }
 
-  /* 工资汇总表格特殊处理 */
-  .content > .card > .table-wrap { overflow-x: auto; }
-
-  /* 月度/年度汇总表格 */
-  .data-table { min-width: 600px; }
-
   /* Toast */
   .toast { top: 10px; left: 10px; right: 10px; font-size: 12px; }
 
   /* 输入框 */
   .form-control { font-size: 13px; padding: 8px 10px; }
 
-  /* flex布局改为垂直 */
-  [style*="display:flex"] { flex-wrap: wrap; }
-  [style*="min-width:150px"], [style*="min-width:120px"], [style*="min-width:280px"],
-  [style*="min-width:200px"], [style*="min-width:100px"], [style*="min-width:400px"] {
-    min-width: 0 !important; width: 100% !important;
-  }
+  /* 工序登记公共信息行 — 垂直排列 */
+  .panel-entry .card > div[style*="display:flex"] { flex-wrap: wrap; }
+  .panel-entry .card > div[style*="display:flex"] > .form-group { min-width: 0 !important; flex: 1 1 140px; }
+
+  /* 按钮行不换行，保持可点击 */
+  .card > div[style*="display:flex"] > .btn,
+  .card-title + div[style*="display:flex"] > .btn,
+  .filter-bar > .btn { flex: 0 0 auto !important; }
 }
 
 @media (max-width: 480px) {

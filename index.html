@@ -1276,7 +1276,7 @@ const DB = {
 const UI = {
   async init() {
     // 先从本地加载数据（同步），立即绑定事件和渲染UI
-    this.load();
+    DB.load();
     this.bindNav();
     this.initDatePickers();
     this.initSelects();

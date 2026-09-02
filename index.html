@@ -2,7 +2,8 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
 <title>计件工资管理系统</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <!-- Supabase 客户端 -->
@@ -35,7 +36,8 @@
   --warning-light: #fef3c7;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Microsoft YaHei', '微软雅黑', sans-serif; background: var(--content-bg); color: var(--text); font-size: 14px; }
+html, body { width: 100%; overflow-x: hidden; -webkit-text-size-adjust: 100%; }
+body { font-family: 'Microsoft YaHei', '微软雅黑', sans-serif; background: var(--content-bg); color: var(--text); font-size: 14px; position: relative; }
 
 .layout { display: flex; min-height: 100vh; }
 
@@ -80,7 +82,7 @@ body { font-family: 'Microsoft YaHei', '微软雅黑', sans-serif; background: v
 .btn-danger:hover { background: #b91c1c; }
 .btn-sm { padding: 3px 8px; font-size: 12px; }
 .btn-icon-only { padding: 5px 8px; }
-.content { flex: 1; padding: 20px 24px; overflow-y: auto; }
+.content { flex: 1; padding: 20px 24px; overflow-x: hidden; overflow-y: auto; width: 100%; max-width: 100%; position: relative; }
 .panel { display: none; }
 .panel.active { display: block; }
 
@@ -88,6 +90,9 @@ body { font-family: 'Microsoft YaHei', '微软雅黑', sans-serif; background: v
 .card {
   background: var(--card-bg); border-radius: 8px; padding: 20px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 16px;
+  max-width: 100%;
+  overflow-x: visible;
+  position: relative;
 }
 .card-title { font-size: 15px; font-weight: 600; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
 
@@ -105,7 +110,16 @@ select.form-control { cursor: pointer; }
 .form-actions { display: flex; gap: 8px; margin-top: 16px; }
 
 /* Table */
-.table-wrap { overflow-x: auto; }
+.table-wrap {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  width: 100%;
+  max-width: 100%;
+  position: relative;
+  z-index: 1;
+}
 table.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 table.data-table th {
   background: #f8fafc; padding: 8px 10px; text-align: left;
@@ -336,21 +350,48 @@ table.batch-table .batch-proc { width: 100%; }
     margin-left: 0 !important;
     margin-bottom: 56px;
     width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
   }
-  /* 内容区域保持 overflow-y: auto 用于垂直滚动 */
-  .content { padding: 6px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  /* 内容区域：仅垂直滚动，明确禁止父级横滑以避免吞掉子级 .table-wrap 手势 */
+  .content {
+    padding: 6px;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 1;
+  }
   .topbar { padding: 8px 10px; }
   .topbar h2 { font-size: 14px; }
   .topbar-date { font-size: 10px; }
 
-  /* 交互元素 — 优化触摸响应 */
-  .btn, .nav-item, .pagination button, .form-control, select, input {
-    touch-action: manipulation;
+  /* 交互元素 — 还原 auto 避免 manipulation 在嵌套滚动容器下吞掉点击 */
+  .btn, .nav-item, .pagination button, .form-control, select, input, textarea {
+    touch-action: auto !important;
+    -webkit-tap-highlight-color: rgba(37, 99, 235, 0.15);
+    /* iOS 合成层修复：强制独立渲染层，避免在 -webkit-overflow-scrolling 容器内丢失点击 */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+  /* 确保交互元素在点击区域内可被点击，并提升点击响应（iOS 需要 cursor:pointer 才派发 click）*/
+  .btn, button, select, input, textarea, .nav-item, .inner-tab, .pagination-controls button, .del-btn, .pagination button {
+    position: relative;
+    z-index: 2;
+    cursor: pointer;
+  }
+  textarea, input[type=text], input[type=number], input[type=date], input[type=time], input[type=tel] {
+    cursor: text;
+    -webkit-user-select: text;
+    user-select: text;
   }
   .nav-item { cursor: pointer; }
 
-  /* 卡片 */
-  .card { padding: 8px; border-radius: 6px; }
+  /* 卡片在手机端不允许横向溢出，避免触发 content 隐式横滚 */
+  .card { padding: 8px; border-radius: 6px; max-width: 100% !important; overflow-x: visible; }
   .card-title { font-size: 13px; margin-bottom: 6px; }
 
   /* 统计卡片 */
@@ -359,9 +400,19 @@ table.batch-table .batch-proc { width: 100%; }
   .stat-card .stat-value { font-size: 16px; }
   .stat-card .stat-label { font-size: 10px; }
 
-  /* 表格 — 横向滚动 */
-  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .data-table { font-size: 11px; min-width: 600px; }
+  /* 表格 — 横向滚动容器（手机端唯一的横滑入口）*/
+  .table-wrap {
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-x pan-y !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 1;
+  }
+  .data-table { font-size: 11px; min-width: 600px; table-layout: auto; }
   .data-table th, .data-table td { padding: 3px 5px; white-space: nowrap; }
 
   /* 批量登记表格 */
@@ -4604,6 +4655,31 @@ UI.init().then(function() {
     userInfoEl.textContent = '当前用户：' + (window.currentSupabaseUser.email || '');
   }
 });
+
+// ===================== 移动端点击/滚动兼容修复 =====================
+(function() {
+  // 1) iOS Safari 经典 Bug：带 -webkit-overflow-scrolling:touch 的滚动容器内部元素点击事件不触发
+  //    — 在 body 注册空 touchstart 即可修复（所有框架都用此方案）
+  var ua = navigator.userAgent || '';
+  var isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  if (/iPhone|iPad|iPod|iOS/i.test(ua) || isTouchDevice) {
+    document.body.addEventListener('touchstart', function() {}, {passive: true});
+  }
+
+  // 2) 防止移动端下拉选择 / 日期框 展开后被意外遮挡或失焦
+  document.addEventListener('focusout', function(e) {
+    // 空函数作为兼容点，若后续需要可扩展
+  });
+
+  // 3) 统一所有非原生按钮/可点击 DIV 的点击兼容（iOS 需要 cursor:pointer 才会派发 click）
+  //    此处已在 CSS 补充，JS 层再兜底给动态渲染的可点击元素
+  var touchClickSel = '.nav-item, .inner-tab, .pagination-controls button, .pagination button, .emp-card, .cal-cell, .del-btn';
+  try {
+    document.querySelectorAll(touchClickSel).forEach(function(el) {
+      if (el.style.cursor !== 'pointer') el.style.cursor = 'pointer';
+    });
+  } catch (e) {}
+})();
 
 </script>
 </body>

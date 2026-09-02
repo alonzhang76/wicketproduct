@@ -1275,8 +1275,8 @@ const DB = {
 // ===================== UI LAYER =====================
 const UI = {
   async init() {
-    // 先等待 Supabase 初始化，再从云端加载数据
-    await DB.loadFromCloud();
+    // 先从本地加载数据（同步），立即绑定事件和渲染UI
+    this.load();
     this.bindNav();
     this.initDatePickers();
     this.initSelects();
@@ -1291,6 +1291,18 @@ const UI = {
     renderTodayRecords();
     executeQuery();
     renderMonthlySummary();
+
+    // 异步从云端加载数据，完成后重新渲染
+    DB.loadFromCloud().then(() => {
+      this.initSelects();
+      this.renderEmployeeTable();
+      this.renderProcessTable();
+      this.renderOrderTable();
+      renderCalendar();
+      renderTodayRecords();
+      executeQuery();
+      renderMonthlySummary();
+    }).catch(e => { console.warn('[UI.init] 云端加载失败:', e); });
   },
 
   bindEntryEvents() {

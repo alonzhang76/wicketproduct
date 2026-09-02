@@ -17,10 +17,8 @@ body {
   box-shadow: 0 20px 60px rgba(0,0,0,0.15); text-align: center;
 }
 .login-logo {
-  width: 72px; height: 72px; margin: 0 auto 16px;
-  background: linear-gradient(135deg, #2563eb, #764ba2);
-  border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  font-size: 32px; color: #fff;
+  margin: 0 auto 16px;
+  display: flex; align-items: center; justify-content: center;
 }
 .login-title { font-size: 22px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
 .login-subtitle { font-size: 13px; color: #64748b; margin-bottom: 28px; }
@@ -51,7 +49,7 @@ body {
 }
 @media (max-width: 480px) {
   .login-card { padding: 28px 20px; border-radius: 12px; }
-  .login-logo { width: 60px; height: 60px; font-size: 26px; }
+  .login-logo img { max-width: 100px; }
   .login-title { font-size: 18px; }
   .login-subtitle { font-size: 11px; margin-bottom: 20px; }
   .form-input { padding: 12px 14px; font-size: 16px; }
@@ -62,7 +60,7 @@ body {
 <body>
 <div class="login-page">
   <div class="login-card">
-    <div class="login-logo"><img src="Logo.png" alt="Logo" style="width:48px;height:48px;border-radius:50%;"></div>
+    <div class="login-logo"><img src="Logo.png" alt="Logo" style="max-width:120px;height:auto;"></div>
     <div class="login-title">计件工资管理系统</div>
     <div class="login-subtitle">Piece-Rate Wage Management System</div>
     <form id="loginForm" onsubmit="return handleLogin(event)">

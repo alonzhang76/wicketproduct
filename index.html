@@ -559,18 +559,23 @@ table.batch-table .batch-proc { width: 100%; }
           <div class="inner-tab active" data-stat="overview">经营总览</div>
           <div class="inner-tab" data-stat="employee">员工排名</div>
           <div class="inner-tab" data-stat="order">订单分析</div>
+          <div class="inner-tab" data-stat="orderStat">订单统计</div>
           <div class="inner-tab" data-stat="trend">月度趋势</div>
           <div class="inner-tab" data-stat="matrix">员工×工序矩阵</div>
         </div>
         <div class="card">
           <div class="filter-bar">
-            <div class="form-group">
+            <div class="form-group" id="statsStartGroup">
               <label>开始日期</label>
               <input type="date" class="form-control" id="statsStartDate" onchange="renderStats()">
             </div>
-            <div class="form-group">
+            <div class="form-group" id="statsEndGroup">
               <label>结束日期</label>
               <input type="date" class="form-control" id="statsEndDate" onchange="renderStats()">
+            </div>
+            <div class="form-group" id="orderStatYearGroup" style="display:none;">
+              <label>统计年份</label>
+              <select class="form-control" id="orderStatYear" onchange="renderStats()" style="width:120px;"></select>
             </div>
             <div class="form-group" style="flex-direction:row;gap:8px;">
               <button class="btn btn-success" onclick="exportStats()">导出Excel</button>
@@ -618,8 +623,12 @@ table.batch-table .batch-proc { width: 100%; }
               </select>
               <span style="font-size:13px;color:var(--text-light);">条/页</span>
               <button class="btn btn-primary btn-sm" onclick="showProcessModal()">+ 新增工序</button>
+              <button class="btn btn-sm" style="background:var(--success-light);color:var(--success-dark);" onclick="document.getElementById('processExcelInput').click()">导入Excel</button>
+              <button class="btn btn-sm" style="background:var(--primary-light);color:var(--primary-dark);" onclick="exportProcessesExcel()">导出Excel</button>
+              <button class="btn btn-sm btn-danger" onclick="clearAllProcesses()">清空</button>
             </div>
           </div>
+          <input type="file" id="processExcelInput" accept=".xlsx,.xls" style="display:none" onchange="importProcessesExcel(this)">
           <div class="table-wrap" id="processTable"></div>
           <div class="pagination" id="processPagination"></div>
         </div>
@@ -1130,6 +1139,13 @@ const UI = {
         document.querySelectorAll('.inner-tab').forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
         DB.currentStat = tab.dataset.stat;
+        const isOrderStat = DB.currentStat === 'orderStat';
+        const yearGroup = document.getElementById('orderStatYearGroup');
+        const startGroup = document.getElementById('statsStartGroup');
+        const endGroup = document.getElementById('statsEndGroup');
+        if (yearGroup) yearGroup.style.display = isOrderStat ? '' : 'none';
+        if (startGroup) startGroup.style.display = isOrderStat ? 'none' : '';
+        if (endGroup) endGroup.style.display = isOrderStat ? 'none' : '';
         renderStats();
       });
     });
@@ -1208,6 +1224,8 @@ const UI = {
     monthlyYear.innerHTML = years.map(y => `<option value="${y}" ${y===prevMonthYear?'selected':''}>${y}年</option>`).join('');
     annualYear.innerHTML = years.map(y => `<option value="${y}" ${y===curYear?'selected':''}>${y}年</option>`).join('');
     document.getElementById('monthlyMonth').value = prevMonth;
+    const ordStatYear = document.getElementById('orderStatYear');
+    if (ordStatYear) ordStatYear.innerHTML = years.map(y => `<option value="${y}" ${y===curYear?'selected':''}>${y}年</option>`).join('');
   },
 
   toast(msg, type) {
@@ -2079,6 +2097,11 @@ function renderStats() {
     return;
   }
 
+  if (DB.currentStat === 'orderStat') {
+    container.innerHTML = renderOrderStats(colors);
+    return;
+  }
+
   if (DB.currentStat === 'trend') {
     container.innerHTML = renderTrend(data, {totalAmount, empCount}, colors);
     return;
@@ -2088,6 +2111,119 @@ function renderStats() {
     container.innerHTML = renderMatrix(data, filters, {totalAmount}, colors);
     return;
   }
+}
+
+// ========== Order Statistics ==========
+function renderOrderStats(colors) {
+  const yearSel = document.getElementById('orderStatYear');
+  const year = yearSel ? parseInt(yearSel.value) : new Date().getFullYear();
+  const allOrders = DB.orders || [];
+  const orders = allOrders.filter(o => {
+    if (!o.orderDate) return false;
+    const y = parseInt(o.orderDate.substring(0, 4));
+    return y === year;
+  });
+  if (orders.length === 0) {
+    return `<div class="card"><div class="empty-state">${year}年暂无订单数据</div></div>`;
+  }
+
+  const months = [];
+  for (let m = 1; m <= 12; m++) months.push(m);
+
+  const monthTotals = new Array(13).fill(0);
+  const typeMap = {};
+  const drawingMap = {};
+  const customerMap = {};
+
+  orders.forEach(o => {
+    for (let m = 1; m <= 12; m++) {
+      const v = parseInt(o['m' + m]) || 0;
+      if (v === 0) continue;
+      monthTotals[m] += v;
+
+      const type = o.type || '未分类';
+      if (!typeMap[type]) typeMap[type] = new Array(13).fill(0);
+      typeMap[type][m] += v;
+
+      const dwg = o.drawingNo || '无图号';
+      if (!drawingMap[dwg]) drawingMap[dwg] = new Array(13).fill(0);
+      drawingMap[dwg][m] += v;
+
+      const cust = o.customer || '未知客户';
+      if (!customerMap[cust]) customerMap[cust] = new Array(13).fill(0);
+      customerMap[cust][m] += v;
+    }
+  });
+
+  const yearTotal = monthTotals.slice(1).reduce((s, v) => s + v, 0);
+  const maxMonthVal = Math.max(...monthTotals.slice(1), 1);
+
+  let kpiHtml = `
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">年度总产出</div><div class="stat-value">${yearTotal}</div><div class="stat-sub">${year}年</div></div>
+      <div class="stat-card stat-success"><div class="stat-label">炉架类型数</div><div class="stat-value">${Object.keys(typeMap).length}</div><div class="stat-sub">不同类型</div></div>
+      <div class="stat-card stat-warn"><div class="stat-label">图纸号数</div><div class="stat-value">${Object.keys(drawingMap).length}</div><div class="stat-sub">不同图号</div></div>
+      <div class="stat-card"><div class="stat-label">客户数</div><div class="stat-value">${Object.keys(customerMap).length}</div><div class="stat-sub">不同客户</div></div>
+    </div>`;
+
+  const monthHeader = months.map(m => `<th style="text-align:center;">${m}月</th>`).join('');
+  const monthBarRow = months.map(m => {
+    const v = monthTotals[m];
+    const pct = maxMonthVal > 0 ? (v / maxMonthVal * 100).toFixed(1) : 0;
+    return `<td style="text-align:center;">${v > 0 ? `<div style="background:var(--primary-light);border-radius:3px;height:${Math.max(4, pct/2)}px;width:80%;margin:0 auto 2px;"></div>${v}` : '-'}</td>`;
+  }).join('');
+  const monthTotalRow = months.map(m => `<td style="text-align:center;font-weight:600;color:var(--primary);">${monthTotals[m] || '-'}</td>`).join('');
+
+  let monthlyHtml = `
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-title">月度产出统计（${year}年）</div>
+      <div class="table-wrap">
+        <table class="data-table summary-table" style="font-size:12px;">
+          <thead><tr><th style="width:100px;">类别</th>${monthHeader}<th style="text-align:center;">合计</th></tr></thead>
+          <tbody>
+            <tr><td style="font-weight:600;">产出数量</td>${monthTotalRow}<td style="text-align:center;font-weight:700;color:var(--danger);">${yearTotal}</td></tr>
+            <tr><td style="font-size:11px;color:var(--text-light);">占比</td>${months.map(m => {
+              const v = monthTotals[m];
+              const pct = yearTotal > 0 ? (v / yearTotal * 100).toFixed(1) : 0;
+              return `<td style="text-align:center;font-size:11px;color:var(--text-light);">${v > 0 ? pct + '%' : '-'}</td>`;
+            }).join('')}<td style="text-align:center;font-size:11px;color:var(--text-light);">100%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+
+  const buildTable = (title, map, colorIdx) => {
+    const entries = Object.entries(map).sort((a, b) => {
+      const sumA = a[1].slice(1).reduce((s, v) => s + v, 0);
+      const sumB = b[1].slice(1).reduce((s, v) => s + v, 0);
+      return sumB - sumA;
+    });
+    if (entries.length === 0) return '';
+    const color = colors[colorIdx % colors.length];
+    let rows = entries.map(([name, arr]) => {
+      const sum = arr.slice(1).reduce((s, v) => s + v, 0);
+      const cells = months.map(m => `<td style="text-align:center;">${arr[m] > 0 ? arr[m] : '-'}</td>`).join('');
+      const pct = yearTotal > 0 ? (sum / yearTotal * 100).toFixed(1) : 0;
+      return `<tr><td style="font-weight:600;color:${color};">${name}</td>${cells}<td style="text-align:center;font-weight:600;">${sum}</td><td style="text-align:center;font-size:11px;color:var(--text-light);">${pct}%</td></tr>`;
+    }).join('');
+    const totalByType = months.map(m => entries.reduce((s, [_, arr]) => s + arr[m], 0));
+    const totalRow = `<tr style="background:var(--primary-light);"><td style="font-weight:700;">合计</td>${totalByType.map(v => `<td style="text-align:center;font-weight:600;">${v > 0 ? v : '-'}</td>`).join('')}<td style="text-align:center;font-weight:700;color:var(--danger);">${yearTotal}</td><td style="text-align:center;font-weight:700;">100%</td></tr>`;
+    return `
+      <div class="card" style="margin-bottom:16px;">
+        <div class="card-title">${title}</div>
+        <div class="table-wrap">
+          <table class="data-table summary-table" style="font-size:12px;">
+            <thead><tr><th style="width:120px;">名称</th>${monthHeader}<th style="text-align:center;">合计</th><th style="text-align:center;">占比</th></tr></thead>
+            <tbody>${rows}${totalRow}</tbody>
+          </table>
+        </div>
+      </div>`;
+  };
+
+  return kpiHtml + monthlyHtml +
+    buildTable('按炉架类型产出统计', typeMap, 0) +
+    buildTable('按图纸号产出统计', drawingMap, 2) +
+    buildTable('按客户产出统计', customerMap, 4);
 }
 
 // ========== Overview Dashboard ==========
@@ -2704,13 +2840,17 @@ function renderMatrix(data, filters, d, colors) {
 }
 
 function exportStats() {
+  const stats = DB.currentStat;
+  if (stats === 'orderStat') {
+    exportOrderStats();
+    return;
+  }
   const filters = {
     startDate: document.getElementById('statsStartDate').value,
     endDate: document.getElementById('statsEndDate').value
   };
   const data = DB.queryRecords(filters);
   if (data.length === 0) { UI.toast('无数据可导出'); return; }
-  const stats = DB.currentStat;
   let wsData = [];
   if (stats === 'order') {
     const orderMap = {};
@@ -2766,6 +2906,73 @@ function exportStats() {
   XLSX.utils.book_append_sheet(wb, ws, '统计分析');
   XLSX.writeFile(wb, `统计分析_${stats}.xlsx`);
   UI.toast('已导出统计分析');
+}
+
+function exportOrderStats() {
+  const yearSel = document.getElementById('orderStatYear');
+  const year = yearSel ? parseInt(yearSel.value) : new Date().getFullYear();
+  const orders = (DB.orders || []).filter(o => {
+    if (!o.orderDate) return false;
+    return parseInt(o.orderDate.substring(0, 4)) === year;
+  });
+  if (orders.length === 0) { UI.toast(`${year}年无订单数据`); return; }
+
+  const months = [];
+  for (let m = 1; m <= 12; m++) months.push(m);
+  const monthTotals = new Array(13).fill(0);
+  const typeMap = {}, drawingMap = {}, customerMap = {};
+  orders.forEach(o => {
+    for (let m = 1; m <= 12; m++) {
+      const v = parseInt(o['m' + m]) || 0;
+      if (v === 0) continue;
+      monthTotals[m] += v;
+      const t = o.type || '未分类';
+      if (!typeMap[t]) typeMap[t] = new Array(13).fill(0);
+      typeMap[t][m] += v;
+      const d = o.drawingNo || '无图号';
+      if (!drawingMap[d]) drawingMap[d] = new Array(13).fill(0);
+      drawingMap[d][m] += v;
+      const c = o.customer || '未知客户';
+      if (!customerMap[c]) customerMap[c] = new Array(13).fill(0);
+      customerMap[c][m] += v;
+    }
+  });
+
+  const wb = XLSX.utils.book_new();
+  const buildSheet = (title, map, hasPct) => {
+    const header = ['名称', ...months.map(m => m + '月'), '合计'];
+    if (hasPct) header.push('占比');
+    const rows = [header];
+    const entries = Object.entries(map).sort((a, b) => {
+      const sumA = a[1].slice(1).reduce((s, v) => s + v, 0);
+      const sumB = b[1].slice(1).reduce((s, v) => s + v, 0);
+      return sumB - sumA;
+    });
+    const yearTotal = monthTotals.slice(1).reduce((s, v) => s + v, 0);
+    entries.forEach(([name, arr]) => {
+      const sum = arr.slice(1).reduce((s, v) => s + v, 0);
+      const row = [name, ...months.map(m => arr[m] || ''), sum];
+      if (hasPct) row.push(yearTotal > 0 ? (sum / yearTotal * 100).toFixed(1) + '%' : '0%');
+      rows.push(row);
+    });
+    const totalArr = months.map(m => entries.reduce((s, [_, arr]) => s + arr[m], 0));
+    const totalRow = ['合计', ...totalArr.map(v => v || ''), yearTotal];
+    if (hasPct) totalRow.push('100%');
+    rows.push(totalRow);
+    return XLSX.utils.aoa_to_sheet(rows);
+  };
+
+  const ws1 = XLSX.utils.aoa_to_sheet([
+    ['类别', ...months.map(m => m + '月'), '合计'],
+    ['产出数量', ...months.map(m => monthTotals[m] || ''), monthTotals.slice(1).reduce((s, v) => s + v, 0)]
+  ]);
+  XLSX.utils.book_append_sheet(wb, ws1, '月度产出');
+  XLSX.utils.book_append_sheet(wb, buildSheet('按炉架类型', typeMap, true), '炉架类型');
+  XLSX.utils.book_append_sheet(wb, buildSheet('按图纸号', drawingMap, true), '图纸号');
+  XLSX.utils.book_append_sheet(wb, buildSheet('按客户', customerMap, true), '客户');
+
+  XLSX.writeFile(wb, `订单统计_${year}年.xlsx`);
+  UI.toast(`已导出${year}年订单统计`);
 }
 
 // ===================== EMPLOYEE MGMT =====================
@@ -3111,6 +3318,115 @@ function deleteProcess(id) {
   UI.renderProcessTable();
   UI.initSelects();
   UI.toast('工序已删除');
+}
+
+function importProcessesExcel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  UI.toast('正在解析Excel文件...', 'success');
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      const headerRules = [
+        { field: 'name', test: h => /工序名称|工序|名称/.test(h) },
+        { field: 'unitPrice', test: h => /单件计价|单价|计件单价/.test(h) },
+        { field: 'dailyQuota', test: h => /每日定额|定额|日定额/.test(h) },
+        { field: 'overPrice', test: h => /超额计价|超额单价|超产单价/.test(h) },
+        { field: 'notes', test: h => /备注|说明/.test(h) }
+      ];
+      let headerRow = -1;
+      const colMap = {};
+      for (let i = 0; i < Math.min(rows.length, 5); i++) {
+        const row = rows[i] || [];
+        let matches = 0;
+        const tempMap = {};
+        for (let j = 0; j < row.length; j++) {
+          const h = String(row[j] || '').trim();
+          if (!h) continue;
+          for (const rule of headerRules) {
+            if (rule.test(h) && tempMap[rule.field] === undefined) {
+              tempMap[rule.field] = j;
+              matches++;
+              break;
+            }
+          }
+        }
+        if (matches >= 2) {
+          headerRow = i;
+          Object.assign(colMap, tempMap);
+          break;
+        }
+      }
+      if (headerRow === -1 || colMap.name === undefined) {
+        UI.toast('未找到有效表头（需包含"工序名称"列）', 'error');
+        input.value = '';
+        return;
+      }
+      const getVal = (r, field) => colMap[field] !== undefined ? r[colMap[field]] : '';
+      const validRows = [];
+      for (let i = headerRow + 1; i < rows.length; i++) {
+        const r = rows[i] || [];
+        const name = String(getVal(r, 'name') || '').trim();
+        if (!name) continue;
+        const unitPrice = parseFloat(getVal(r, 'unitPrice')) || 0;
+        if (unitPrice === 0) continue;
+        validRows.push({
+          name,
+          unitPrice,
+          dailyQuota: parseInt(getVal(r, 'dailyQuota')) || 0,
+          overPrice: parseFloat(getVal(r, 'overPrice')) || 0,
+          notes: String(getVal(r, 'notes') || '').trim()
+        });
+      }
+      if (validRows.length === 0) { UI.toast('未找到有效工序数据', 'error'); input.value = ''; return; }
+      const overwrite = confirm('将导入 ' + validRows.length + ' 条工序，是否覆盖现有工序数据？\n\n确定=覆盖\n取消=追加');
+      if (overwrite) { DB.processes = []; }
+      validRows.forEach(rec => { rec.id = DB.uid(); DB.processes.push(rec); });
+      DB.save('processes');
+      UI.renderProcessTable();
+      UI.initSelects();
+      UI.toast('成功导入 ' + validRows.length + ' 条工序');
+    } catch (err) {
+      UI.toast('导入失败: ' + err.message, 'error');
+    }
+    input.value = '';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function exportProcessesExcel() {
+  const processes = DB.processes;
+  if (processes.length === 0) { UI.toast('暂无工序数据', 'error'); return; }
+  const headers = ['工序名称', '单件计价', '每日定额', '超额计价', '备注'];
+  const data = [headers];
+  processes.forEach(p => {
+    data.push([
+      p.name || '',
+      p.unitPrice || 0,
+      p.dailyQuota || 0,
+      p.overPrice || 0,
+      p.notes || ''
+    ]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws['!cols'] = [{ wch: 20 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 20 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '工序表');
+  XLSX.writeFile(wb, '工序表_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+  UI.toast('已导出工序表');
+}
+
+function clearAllProcesses() {
+  if (DB.processes.length === 0) { UI.toast('当前无工序数据', 'error'); return; }
+  if (!confirm('确认清空全部 ' + DB.processes.length + ' 条工序数据？\n\n此操作不可恢复！')) return;
+  DB.processes = [];
+  DB.save('processes');
+  UI.renderProcessTable();
+  UI.initSelects();
+  UI.toast('全部工序数据已清空');
 }
 
 // ===================== ORDER MGMT =====================
@@ -3512,19 +3828,20 @@ function importOrdersExcel(input) {
 function exportOrdersExcel() {
   const orders = DB.orders;
   if (orders.length === 0) { UI.toast('暂无订单数据', 'error'); return; }
-  const headers = ['下单日期', '客户', '订单号', '炉架类型', '图纸号', '规格', '订单数量', '产出数量', '库存', '电镀', '蝴蝶结', '出货日期', '交期', '投料日期', '包装结束', '备注', '1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+  const headers = ['下单日期', '客户', '订单号', '炉架类型', '图纸号', '规格', '订单数量', '产出数量', '库存', '电镀', '蝴蝶结', '投料日期', '包装结束', '出货日期', '交期', '状态', '备注', '1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
   const data = [headers];
   orders.forEach(o => {
     data.push([
       UI.fmtDate(o.orderDate), o.customer || '', o.orderNo || '', o.type || '', o.drawingNo || '', o.spec || '',
       o.qty || 0, o.output || 0, o.stock || 0, o.plating || '', o.bow || '',
-      UI.fmtDate(o.shipDate), UI.fmtDate(o.delivery), UI.fmtDate(o.materialDate), UI.fmtDate(o.packDate), o.notes || '',
+      UI.fmtDate(o.materialDate), UI.fmtDate(o.packDate), UI.fmtDate(o.shipDate), UI.fmtDate(o.delivery),
+      getOrderStatus(o), o.notes || '',
       o.m1 || 0, o.m2 || 0, o.m3 || 0, o.m4 || 0, o.m5 || 0, o.m6 || 0,
       o.m7 || 0, o.m8 || 0, o.m9 || 0, o.m10 || 0, o.m11 || 0, o.m12 || 0
     ]);
   });
   const ws = XLSX.utils.aoa_to_sheet(data);
-  ws['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 9 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }];
+  ws['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 9 }, { wch: 14 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 15 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }, { wch: 8 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '订单表');
   XLSX.writeFile(wb, '订单表_' + new Date().toISOString().slice(0, 10) + '.xlsx');

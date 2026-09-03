@@ -1357,14 +1357,16 @@ const UI = {
 
     // 异步从云端加载数据，完成后重新渲染
     DB.loadFromCloud().then(() => {
-      this.initSelects();
-      this.renderEmployeeTable();
-      this.renderProcessTable();
-      this.renderOrderTable();
-      renderCalendar();
-      renderTodayRecords();
-      executeQuery();
-      renderMonthlySummary();
+      try { this.initSelects(); } catch(e) { console.warn('[UI.init] initSelects:', e); }
+      try { this.renderEmployeeTable(); } catch(e) { console.warn('[UI.init] renderEmployeeTable:', e); }
+      try { this.renderProcessTable(); } catch(e) { console.warn('[UI.init] renderProcessTable:', e); }
+      try { this.renderOrderTable(); } catch(e) { console.warn('[UI.init] renderOrderTable:', e); }
+      try { renderCalendar(); } catch(e) { console.warn('[UI.init] renderCalendar:', e); }
+      try { renderTodayRecords(); } catch(e) { console.warn('[UI.init] renderTodayRecords:', e); }
+      try { executeQuery(); } catch(e) { console.warn('[UI.init] executeQuery:', e); }
+      try { renderMonthlySummary(); } catch(e) { console.warn('[UI.init] renderMonthlySummary:', e); }
+      // 确保 datalist 在所有数据加载后被刷新
+      try { getActiveOrderInfoDatalist(); } catch(e) { console.warn('[UI.init] getActiveOrderInfoDatalist:', e); }
     }).catch(e => { console.warn('[UI.init] 云端加载失败:', e); });
   },
 
@@ -1660,10 +1662,15 @@ function updateBatchTotal() {
 
 function getActiveOrderInfoDatalist() {
   const dl = document.getElementById('orderInfoDatalist');
-  const activeOrders = DB.orders.filter(o => {
+  if (!dl) return;
+  let activeOrders = DB.orders.filter(o => {
     const st = getOrderStatus(o);
     return st !== '已出货' && st !== '生产结束';
   });
+  // 回退：如果所有订单都已出货/结束，则显示全部订单（避免下拉为空）
+  if (activeOrders.length === 0 && DB.orders.length > 0) {
+    activeOrders = DB.orders;
+  }
   dl.innerHTML = activeOrders.map(o => {
     const label = `${o.customer || ''} | ${o.orderNo || ''} | ${o.type || ''} | ${o.drawingNo || ''} | 订单数:${o.qty || 0}`;
     const value = `${o.customer || ''},${o.orderNo || ''}`;

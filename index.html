@@ -1111,6 +1111,22 @@ const STORE_KEYS = {
   calendarEventTypes: 'wage_calendar_event_types'
 };
 
+// 清洗日期值：仅接受 YYYY-MM-DD（或可解析的 2026/9/3、2026年9月3日 等格式），
+// 无法识别的占位符（如 "-"、"/"、"无"）一律返回 ''，避免被误判为已出货/包装结束
+function sanitizeDateValue(v) {
+  if (!v) return '';
+  const s = String(v).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const m = s.match(/^(\d{4})[.\-\/年](\d{1,2})[.\-\/月](\d{1,2})/);
+  if (m) {
+    const y = +m[1], mo = +m[2], d = +m[3];
+    if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+      return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+    }
+  }
+  return '';
+}
+
 const DB = {
   records: [],
   employees: [],
@@ -1169,6 +1185,17 @@ const DB = {
       const savedOpts = localStorage.getItem(STORE_KEYS.dropdownOptions);
       if (savedOpts) { const parsed = JSON.parse(savedOpts); Object.keys(parsed).forEach(k => { this.dropdownOptions[k] = parsed[k]; }); }
     }
+    // 清洗订单日期字段：把已存入云端/本地的占位符垃圾值（如 "-"、"/"、"无"）清空，
+    // 否则这些订单会被误判为已出货/包装结束，从下拉提示中全部消失，状态列也会显示错误
+    const ORDER_DATE_FIELDS = ['orderDate', 'materialDate', 'packDate', 'shipDate', 'delivery'];
+    this.orders.forEach(o => {
+      ORDER_DATE_FIELDS.forEach(f => {
+        const v = o[f];
+        if (v === undefined || v === null || v === '') return;
+        const fixed = sanitizeDateValue(v);
+        if (fixed !== v) o[f] = fixed;
+      });
+    });
   },
 
   async loadFromCloud() {
@@ -3355,7 +3382,10 @@ function parseExcelDate(val) {
     const d = XLSX.SSF.parse_date_code(val);
     return d.y + '-' + String(d.m).padStart(2,'0') + '-' + String(d.d).padStart(2,'0');
   }
-  return UI.fmtDate(val);
+  // 兜底：仅当结果为合法日期（YYYY-MM-DD）时返回；
+  // 否则视为占位符（如 "-"、"/"、"无"）返回空串，避免被误判为已出货/包装结束
+  const formatted = UI.fmtDate(val);
+  return /^\d{4}-\d{2}-\d{2}$/.test(formatted) ? formatted : '';
 }
 
 function importEmployeesExcel(input) {
